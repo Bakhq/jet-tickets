@@ -53,7 +53,7 @@ export function Footer() {
           <div>
             <Link to="/" className="inline-flex items-center gap-2 mb-3.5">
               <JetMark size={20} />
-              <span className="text-lg font-bold tracking-tight text-cream">Jet</span>
+              <span className="text-lg font-bold tracking-tight text-cream">Jetūna</span>
             </Link>
             <div className="text-sm text-muted-dark max-w-[260px] leading-relaxed">
               Билеты на концерты, фестивали и шоу — быстро и без переплат.
@@ -80,7 +80,7 @@ export function Footer() {
         </div>
         <div className="border-t border-white/[0.08] pt-5 sm:pt-6 flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-3.5">
           <div className="text-[13px] text-muted-dark order-3 sm:order-1">
-            © 2026 Jet. Все права защищены.
+            © 2026 Jetūna. Все права защищены.
           </div>
           <div className="order-1 sm:order-2">
             <PaymentBadges />
@@ -103,7 +103,7 @@ export function Footer() {
 export function MinimalFooter() {
   return (
     <footer className="border-t border-border px-5 sm:px-12 py-6 flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-2.5">
-      <div className="text-[13px] text-muted">© 2026 Jet. Все права защищены.</div>
+      <div className="text-[13px] text-muted">© 2026 Jetūna. Все права защищены.</div>
       <div className="flex gap-4.5 sm:gap-6">
         <Link to="/" className="text-[13px] text-muted">
           Условия использования
