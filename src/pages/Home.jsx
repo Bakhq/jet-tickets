@@ -235,7 +235,7 @@ export default function Home() {
       <div className="bg-white border-t border-b border-border py-10 sm:py-16 px-5 sm:px-12">
         <div className="max-w-[1000px] mx-auto text-center mb-8 sm:mb-12">
           <div className="text-xs font-semibold tracking-[0.14em] uppercase text-teal-deep mb-2.5">
-            Почему Jet
+            Почему Jetūna
           </div>
           <div className="text-[22px] sm:text-[32px] font-bold text-ink-2">
             Покупать билеты стало проще
@@ -258,7 +258,7 @@ export default function Home() {
           Организуете мероприятие?
         </div>
         <div className="text-sm sm:text-[15px] leading-relaxed text-[#A9D9D3] mb-6 max-w-md mx-auto">
-          Продавайте билеты через Jet: касса, аналитика и быстрые выплаты.
+          Продавайте билеты через Jetūna: касса, аналитика и быстрые выплаты.
         </div>
         <Link
           to="/organizer"
