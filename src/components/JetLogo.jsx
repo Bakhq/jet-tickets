@@ -7,7 +7,7 @@ export default function JetLogo({ dark = false, size = 24, textClass = 'text-xl'
       <span
         className={`font-extrabold tracking-tight ${textClass} ${dark ? 'text-cream' : 'text-ink-2'}`}
       >
-        Jet
+        Jetūna
       </span>
     </span>
   )
