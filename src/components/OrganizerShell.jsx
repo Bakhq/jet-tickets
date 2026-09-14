@@ -1,5 +1,4 @@
 import { Link, useNavigate } from 'react-router-dom'
-import JetMark from './JetMark.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 
 const NAV_ITEMS = [
@@ -78,8 +77,9 @@ export default function OrganizerShell({ active, children }) {
       <div className="lg:w-[240px] shrink-0 bg-ink flex flex-col p-4 sm:p-5 lg:p-7 lg:pt-7">
         <div className="flex items-center justify-between lg:block">
           <Link to="/organizer" className="flex items-center gap-2 lg:mb-8">
-            <JetMark size={20} />
-            <span className="text-lg font-bold tracking-tight text-cream">Jetūna</span>
+            <span className="text-lg font-bold tracking-tight whitespace-nowrap text-cream">
+              Jet<span className="u-ticket u-ticket--dark">ū</span>na
+            </span>
             <span className="text-[9px] sm:text-[10px] font-semibold tracking-wide uppercase text-ink bg-teal px-[6px] sm:px-[7px] py-[3px] rounded">
               Organizer
             </span>
