@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom'
-import JetMark from './JetMark.jsx'
 
 const BADGES = ['VISA', 'MASTERCARD', 'МИР', 'СБП']
 
@@ -51,9 +50,10 @@ export function Footer() {
       <div className="max-w-[1344px] mx-auto">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr] gap-8 sm:gap-10 mb-10 sm:mb-12">
           <div>
-            <Link to="/" className="inline-flex items-center gap-2 mb-3.5">
-              <JetMark size={20} />
-              <span className="text-lg font-bold tracking-tight text-cream">Jetūna</span>
+            <Link to="/" className="inline-flex items-center mb-3.5">
+              <span className="text-lg font-bold tracking-tight whitespace-nowrap text-cream">
+                Jet<span className="u-ticket u-ticket--dark">ū</span>na
+              </span>
             </Link>
             <div className="text-sm text-muted-dark max-w-[260px] leading-relaxed">
               Билеты на концерты, фестивали и шоу — быстро и без переплат.
