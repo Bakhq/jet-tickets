@@ -79,7 +79,7 @@ export default function OrganizerShell({ active, children }) {
         <div className="flex items-center justify-between lg:block">
           <Link to="/organizer" className="flex items-center gap-2 lg:mb-8">
             <JetMark size={20} />
-            <span className="text-lg font-bold tracking-tight text-cream">Jet</span>
+            <span className="text-lg font-bold tracking-tight text-cream">Jetūna</span>
             <span className="text-[9px] sm:text-[10px] font-semibold tracking-wide uppercase text-ink bg-teal px-[6px] sm:px-[7px] py-[3px] rounded">
               Organizer
             </span>
