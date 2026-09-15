@@ -5,6 +5,7 @@ import { Footer } from '../components/Footer.jsx'
 import JetMark from '../components/JetMark.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { listUserTickets } from '../lib/api.js'
+import { downloadTicketPdf } from '../lib/ticketPdf.js'
 
 const SIDE_ITEMS = [
   {
@@ -39,36 +40,32 @@ const SIDE_ITEMS = [
   },
 ]
 
-// Ticket "download" has no PDF generator on the backend yet, so this builds
-// a plain-text e-ticket client-side and saves it via a Blob — real, working
-// functionality without needing a server-side ticketing service for a first pass.
-function buildTicketText(ticket) {
-  return [
-    'JETŪNA — ЭЛЕКТРОННЫЙ БИЛЕТ',
-    '',
-    `Мероприятие: ${ticket.eventTitle}`,
-    `Дата: ${ticket.date}`,
-    `Место: ${ticket.venue}`,
-    `Билет: ${ticket.tier} × ${ticket.qty}`,
-    `Номер заказа: ${ticket.orderNumber}`,
-    `Статус: ${ticket.status}`,
-  ].join('\n')
-}
-
-function downloadTicketFile(ticket) {
-  const blob = new Blob([buildTicketText(ticket)], { type: 'text/plain;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `jetuna-ticket-${ticket.orderNumber}.txt`
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
-}
-
 function TicketCard({ ticket }) {
   const [showQR, setShowQR] = useState(false)
+  const [downloading, setDownloading] = useState(false)
+
+  const handleDownload = async () => {
+    setDownloading(true)
+    try {
+      await downloadTicketPdf({
+        id: ticket.id,
+        eventTitle: ticket.eventTitle,
+        dateLine: ticket.date,
+        venue: ticket.venue,
+        tierLine: `${ticket.tier} × ${ticket.qty}`,
+        orderNumber: ticket.orderNumber,
+        buyerName: ticket.buyerName,
+        totalLabel: ticket.total ? `${ticket.total.toLocaleString('ru-RU')} ₽` : null,
+        status: ticket.status,
+        coverImageUrl: ticket.coverImageUrl,
+        gradient: ticket.gradient,
+      })
+    } catch {
+      alert('Не удалось сформировать PDF-билет. Попробуйте ещё раз.')
+    } finally {
+      setDownloading(false)
+    }
+  }
   // The QR encodes the order's own uuid — already unguessable — so the
   // scanner at the door (Scan.jsx) can look it up and check it in via the
   // check_in_ticket RPC. Falls back to the old decorative text if somehow
@@ -119,10 +116,11 @@ function TicketCard({ ticket }) {
             </button>
             <button
               type="button"
-              onClick={() => downloadTicketFile(ticket)}
-              className="bg-ink text-cream rounded-[9px] px-3.5 sm:px-4 py-2.5 text-[12.5px] sm:text-[13px] font-semibold hover:opacity-85 transition-opacity"
+              onClick={handleDownload}
+              disabled={downloading}
+              className="bg-ink text-cream rounded-[9px] px-3.5 sm:px-4 py-2.5 text-[12.5px] sm:text-[13px] font-semibold hover:opacity-85 transition-opacity disabled:opacity-60"
             >
-              Скачать
+              {downloading ? 'Формируем…' : 'Скачать PDF'}
             </button>
           </div>
         </div>
