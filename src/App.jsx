@@ -84,6 +84,14 @@ export default function App() {
           }
         />
         <Route
+          path="/organizer/events/:id/edit"
+          element={
+            <RequireOrganizer>
+              <EventCreate />
+            </RequireOrganizer>
+          }
+        />
+        <Route
           path="/organizer/scan"
           element={
             <RequireOrganizer>
