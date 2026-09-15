@@ -15,10 +15,14 @@ export default function EventCard({ event }) {
           </div>
         )}
         <div
-          className="h-[130px] sm:h-[150px] flex items-center justify-center"
-          style={{ background: `linear-gradient(160deg, ${from}, ${to})` }}
+          className="h-[130px] sm:h-[150px] flex items-center justify-center bg-cover bg-center"
+          style={
+            event.coverImageUrl
+              ? { backgroundImage: `url(${event.coverImageUrl})` }
+              : { background: `linear-gradient(160deg, ${from}, ${to})` }
+          }
         >
-          <JetMark size={44} />
+          {!event.coverImageUrl && <JetMark size={44} />}
         </div>
       </div>
       <div className="p-4 sm:p-[18px]">
