@@ -52,6 +52,29 @@ function writeFavorites(set) {
   }
 }
 
+// "Share as?" menu targets — deep-linking to each service's own share/compose
+// URL, so no SDK or app registration is needed for any of them.
+const SHARE_TARGETS = [
+  {
+    key: 'telegram',
+    label: 'Telegram',
+    color: '#2AABEE',
+    href: (url, text) => `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`,
+  },
+  {
+    key: 'whatsapp',
+    label: 'WhatsApp',
+    color: '#25D366',
+    href: (url, text) => `https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`,
+  },
+  {
+    key: 'vk',
+    label: 'ВКонтакте',
+    color: '#0077FF',
+    href: (url, text) => `https://vk.com/share.php?url=${encodeURIComponent(url)}&title=${encodeURIComponent(text)}`,
+  },
+]
+
 export default function EventDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -63,6 +86,7 @@ export default function EventDetail() {
   const [qty, setQty] = useState({})
   const [favorited, setFavorited] = useState(false)
   const [toast, setToast] = useState(null)
+  const [shareOpen, setShareOpen] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -108,17 +132,7 @@ export default function EventDetail() {
     writeFavorites(set)
   }
 
-  const shareEvent = async () => {
-    const url = window.location.href
-    const shareData = { title: event?.title, text: event ? `${event.title} — ${event.date}` : undefined, url }
-    if (navigator.share) {
-      try {
-        await navigator.share(shareData)
-      } catch {
-        // user cancelled the share sheet — not an error, nothing to do
-      }
-      return
-    }
+  const copyLink = async (url) => {
     if (navigator.clipboard?.writeText) {
       try {
         await navigator.clipboard.writeText(url)
@@ -145,6 +159,30 @@ export default function EventDetail() {
     } catch {
       setToast('Не удалось скопировать ссылку')
     }
+  }
+
+  // Clicking "Поделиться" now opens a "Поделиться как?" menu instead of
+  // silently copying the link — the native share sheet (once the site has
+  // HTTPS) still short-circuits straight to it, since that already gives the
+  // visitor every app they have installed.
+  const openShare = () => {
+    if (navigator.share) {
+      const url = window.location.href
+      navigator
+        .share({ title: event?.title, text: event ? `${event.title} — ${event.date}` : undefined, url })
+        .catch(() => {
+          // user cancelled the share sheet — not an error, nothing to do
+        })
+      return
+    }
+    setShareOpen(true)
+  }
+
+  const shareToTarget = (target) => {
+    const url = window.location.href
+    const text = event ? `${event.title} — ${event.date}` : ''
+    window.open(target.href(url, text), '_blank', 'noopener,noreferrer,width=600,height=640')
+    setShareOpen(false)
   }
 
   const total = useMemo(
@@ -262,7 +300,7 @@ export default function EventDetail() {
               </button>
               <button
                 type="button"
-                onClick={shareEvent}
+                onClick={openShare}
                 aria-label="Поделиться"
                 className="w-9 h-9 sm:w-11 sm:h-11 rounded-[10px] border border-white/[0.14] flex items-center justify-center hover:bg-white/[0.06] transition-colors"
               >
@@ -432,6 +470,62 @@ export default function EventDetail() {
       {toast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-ink text-cream text-[13px] font-medium px-4 py-2.5 rounded-[10px] shadow-[0_12px_28px_rgba(11,10,13,0.28)] z-50">
           {toast}
+        </div>
+      )}
+
+      {shareOpen && (
+        <div
+          className="fixed inset-0 bg-ink/60 flex items-center justify-center z-50 px-5"
+          onClick={() => setShareOpen(false)}
+        >
+          <div className="bg-white rounded-2xl p-6 max-w-[340px] w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="text-base font-semibold text-ink-2 mb-4 text-center">Поделиться как?</div>
+            <div className="flex flex-col gap-2">
+              {SHARE_TARGETS.map((target) => (
+                <button
+                  key={target.key}
+                  type="button"
+                  onClick={() => shareToTarget(target)}
+                  className="flex items-center gap-3 rounded-[10px] border border-border-2 px-3.5 py-3 text-sm font-semibold text-ink-2 hover:bg-[#F0EEE6] transition-colors"
+                >
+                  <span
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                    style={{ background: target.color }}
+                  >
+                    {target.label[0]}
+                  </span>
+                  {target.label}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => {
+                  copyLink(window.location.href)
+                  setShareOpen(false)
+                }}
+                className="flex items-center gap-3 rounded-[10px] border border-border-2 px-3.5 py-3 text-sm font-semibold text-ink-2 hover:bg-[#F0EEE6] transition-colors"
+              >
+                <span className="w-8 h-8 rounded-full bg-ink flex items-center justify-center shrink-0">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                    <rect x="9" y="9" width="10" height="10" rx="2" stroke="#F5F3EF" strokeWidth="1.6" />
+                    <path
+                      d="M6 15 H5 A2 2 0 0 1 3 13 V5 A2 2 0 0 1 5 3 H13 A2 2 0 0 1 15 5 V6"
+                      stroke="#F5F3EF"
+                      strokeWidth="1.6"
+                    />
+                  </svg>
+                </span>
+                Скопировать ссылку
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShareOpen(false)}
+              className="mt-4 w-full border border-border-2 rounded-[10px] py-2.5 text-sm font-semibold text-ink-2 hover:bg-[#F0EEE6] transition-colors"
+            >
+              Отмена
+            </button>
+          </div>
         </div>
       )}
     </div>
