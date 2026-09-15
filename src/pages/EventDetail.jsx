@@ -29,6 +29,29 @@ function QtyStepper({ value, onChange }) {
   )
 }
 
+// Favorites have no backend table yet, so they're kept per-browser in
+// localStorage — enough to make the heart button real (it remembers what
+// you starred here) without needing a schema change for a first pass.
+const FAVORITES_KEY = 'jetuna:favorites'
+
+function readFavorites() {
+  try {
+    const raw = localStorage.getItem(FAVORITES_KEY)
+    return raw ? new Set(JSON.parse(raw)) : new Set()
+  } catch {
+    return new Set()
+  }
+}
+
+function writeFavorites(set) {
+  try {
+    localStorage.setItem(FAVORITES_KEY, JSON.stringify([...set]))
+  } catch {
+    // localStorage unavailable (private mode, quota) — favorite still
+    // toggles visually for this render, it just won't persist.
+  }
+}
+
 export default function EventDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -38,6 +61,8 @@ export default function EventDetail() {
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [qty, setQty] = useState({})
+  const [favorited, setFavorited] = useState(false)
+  const [toast, setToast] = useState(null)
 
   useEffect(() => {
     let active = true
@@ -53,6 +78,7 @@ export default function EventDetail() {
         setEvent(ev)
         setQty(Object.fromEntries(ev.tiers.map((t, i) => [t.id, i === 0 ? 1 : 0])))
         setSimilar(all.filter((e) => e.id !== ev.id).slice(0, 4))
+        setFavorited(readFavorites().has(ev.id))
       })
       .catch(() => active && setNotFound(true))
       .finally(() => active && setLoading(false))
@@ -60,6 +86,46 @@ export default function EventDetail() {
       active = false
     }
   }, [id])
+
+  useEffect(() => {
+    if (!toast) return
+    const t = setTimeout(() => setToast(null), 2200)
+    return () => clearTimeout(t)
+  }, [toast])
+
+  const toggleFavorite = () => {
+    if (!event) return
+    const set = readFavorites()
+    if (set.has(event.id)) {
+      set.delete(event.id)
+      setFavorited(false)
+      setToast('Убрано из избранного')
+    } else {
+      set.add(event.id)
+      setFavorited(true)
+      setToast('Добавлено в избранное')
+    }
+    writeFavorites(set)
+  }
+
+  const shareEvent = async () => {
+    const url = window.location.href
+    const shareData = { title: event?.title, text: event ? `${event.title} — ${event.date}` : undefined, url }
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData)
+      } catch {
+        // user cancelled the share sheet — not an error, nothing to do
+      }
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(url)
+      setToast('Ссылка скопирована')
+    } catch {
+      setToast('Не удалось скопировать ссылку')
+    }
+  }
 
   const total = useMemo(
     () => (event ? event.tiers.reduce((sum, t) => sum + (qty[t.id] || 0) * t.price, 0) : 0),
@@ -112,13 +178,25 @@ export default function EventDetail() {
 
       {/* HERO */}
       <div className="relative bg-ink overflow-hidden">
-        <div
-          className="absolute -top-40 -right-24 w-[520px] h-[520px] pointer-events-none"
-          style={{ background: 'radial-gradient(closest-side, rgba(20,207,190,0.2), rgba(20,207,190,0) 70%)' }}
-        />
-        <div className="hidden sm:block absolute -top-8 -right-5 opacity-[0.08] pointer-events-none">
-          <JetMark size={360} />
-        </div>
+        {event.coverImageUrl ? (
+          <>
+            <div
+              className="absolute inset-0 bg-cover bg-center"
+              style={{ backgroundImage: `url(${event.coverImageUrl})` }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-ink from-10% via-ink/75 via-55% to-ink/25" />
+          </>
+        ) : (
+          <>
+            <div
+              className="absolute -top-40 -right-24 w-[520px] h-[520px] pointer-events-none"
+              style={{ background: 'radial-gradient(closest-side, rgba(20,207,190,0.2), rgba(20,207,190,0) 70%)' }}
+            />
+            <div className="hidden sm:block absolute -top-8 -right-5 opacity-[0.08] pointer-events-none">
+              <JetMark size={360} />
+            </div>
+          </>
+        )}
         <div className="relative max-w-[1440px] mx-auto px-5 sm:px-12 py-7 sm:py-14 pb-8 sm:pb-16">
           <div className="text-xs sm:text-[13px] text-muted-dark mb-3.5 sm:mb-5">
             Главная / Мероприятия / <span className="text-muted-light">{event.category}</span>
@@ -146,13 +224,17 @@ export default function EventDetail() {
             <div className="flex gap-2.5 sm:gap-3 shrink-0">
               <button
                 type="button"
-                aria-label="В избранное"
-                className="w-9 h-9 sm:w-11 sm:h-11 rounded-[10px] border border-white/[0.14] flex items-center justify-center"
+                onClick={toggleFavorite}
+                aria-label={favorited ? 'Убрать из избранного' : 'В избранное'}
+                aria-pressed={favorited}
+                className={`w-9 h-9 sm:w-11 sm:h-11 rounded-[10px] border flex items-center justify-center transition-colors ${
+                  favorited ? 'bg-teal border-teal' : 'border-white/[0.14] hover:bg-white/[0.06]'
+                }`}
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill={favorited ? '#0B0A0D' : 'none'}>
                   <path
                     d="M12 21 C12 21 4 15.5 4 9.5 C4 6.5 6.2 4.5 9 4.5 C10.5 4.5 11.6 5.2 12 6.2 C12.4 5.2 13.5 4.5 15 4.5 C17.8 4.5 20 6.5 20 9.5 C20 15.5 12 21 12 21 Z"
-                    stroke="#F5F3EF"
+                    stroke={favorited ? '#0B0A0D' : '#F5F3EF'}
                     strokeWidth="1.5"
                     strokeLinejoin="round"
                   />
@@ -160,8 +242,9 @@ export default function EventDetail() {
               </button>
               <button
                 type="button"
+                onClick={shareEvent}
                 aria-label="Поделиться"
-                className="w-9 h-9 sm:w-11 sm:h-11 rounded-[10px] border border-white/[0.14] flex items-center justify-center"
+                className="w-9 h-9 sm:w-11 sm:h-11 rounded-[10px] border border-white/[0.14] flex items-center justify-center hover:bg-white/[0.06] transition-colors"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                   <circle cx="6" cy="12" r="2.4" stroke="#F5F3EF" strokeWidth="1.5" />
@@ -195,11 +278,52 @@ export default function EventDetail() {
           </div>
 
           <div className="text-lg sm:text-[22px] font-bold text-ink-2 mb-3 sm:mb-4">Место проведения</div>
-          <div className="h-[160px] sm:h-[220px] rounded-2xl bg-[#E8E5DC] flex items-center justify-center mb-2">
-            <div className="text-[13px] text-muted">Карта площадки</div>
+          <div
+            className="relative h-[160px] sm:h-[220px] rounded-2xl mb-4 overflow-hidden flex items-center justify-center"
+            style={{
+              backgroundColor: '#E8E5DC',
+              backgroundImage:
+                'linear-gradient(#DAD6C9 1px, transparent 1px), linear-gradient(90deg, #DAD6C9 1px, transparent 1px)',
+              backgroundSize: '28px 28px',
+            }}
+          >
+            <div className="flex flex-col items-center gap-2">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M12 21 C12 21 19 14 19 9 C19 5.1 15.9 2 12 2 C8.1 2 5 5.1 5 9 C5 14 12 21 12 21 Z"
+                  fill="#0B0A0D"
+                />
+                <circle cx="12" cy="9" r="2.6" fill="#F5F3EF" />
+              </svg>
+              <div className="text-[12px] sm:text-[13px] font-semibold text-muted-2 text-center px-6">
+                {event.venue}
+              </div>
+            </div>
           </div>
-          <div className="text-[13px] sm:text-sm text-muted-2">
+          <div className="text-[13px] sm:text-sm text-muted-2 mb-3.5">
             {event.venue} — {event.address}
+          </div>
+          <div className="flex flex-wrap gap-2.5">
+            <a
+              href={`https://yandex.ru/maps/?text=${encodeURIComponent(
+                [event.venue, event.address, event.city].filter(Boolean).join(', ')
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-[13px] font-semibold text-ink-2 border border-border-2 rounded-[10px] px-3.5 py-2 hover:bg-[#F0EEE6] transition-colors"
+            >
+              Яндекс.Карты
+            </a>
+            <a
+              href={`https://2gis.ru/search/${encodeURIComponent(
+                [event.venue, event.address, event.city].filter(Boolean).join(', ')
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-[13px] font-semibold text-ink-2 border border-border-2 rounded-[10px] px-3.5 py-2 hover:bg-[#F0EEE6] transition-colors"
+            >
+              2ГИС
+            </a>
           </div>
         </div>
 
@@ -259,10 +383,14 @@ export default function EventDetail() {
                 className="bg-white border border-border rounded-2xl overflow-hidden hover:shadow-[0_12px_28px_rgba(11,10,13,0.08)] transition-shadow"
               >
                 <div
-                  className="h-[110px] sm:h-[130px] flex items-center justify-center"
-                  style={{ background: `linear-gradient(160deg, ${e.gradient[0]}, ${e.gradient[1]})` }}
+                  className="h-[110px] sm:h-[130px] flex items-center justify-center bg-cover bg-center"
+                  style={
+                    e.coverImageUrl
+                      ? { backgroundImage: `url(${e.coverImageUrl})` }
+                      : { background: `linear-gradient(160deg, ${e.gradient[0]}, ${e.gradient[1]})` }
+                  }
                 >
-                  <JetMark size={38} />
+                  {!e.coverImageUrl && <JetMark size={38} />}
                 </div>
                 <div className="p-3.5 sm:p-4">
                   <div className="text-sm sm:text-[15px] font-semibold text-ink-2 mb-1">{e.title}</div>
@@ -280,6 +408,12 @@ export default function EventDetail() {
       )}
 
       <Footer />
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-ink text-cream text-[13px] font-medium px-4 py-2.5 rounded-[10px] shadow-[0_12px_28px_rgba(11,10,13,0.28)] z-50">
+          {toast}
+        </div>
+      )}
     </div>
   )
 }
