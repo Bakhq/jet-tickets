@@ -206,7 +206,9 @@ export async function updateProfile(userId, patch) {
 export async function listUserTickets(userId) {
   const { data, error } = await supabase
     .from('orders')
-    .select('*, events(title, event_date, event_time, venue, city, gradient_from, gradient_to), order_items(*)')
+    .select(
+      '*, events(title, event_date, event_time, venue, city, gradient_from, gradient_to, cover_image_url), order_items(*)'
+    )
     .eq('user_id', userId)
     .eq('status', 'paid')
     .order('created_at', { ascending: false })
@@ -231,6 +233,9 @@ export async function listUserTickets(userId) {
       qty,
       status: isUpcoming ? 'Оплачено' : 'Завершено',
       gradient: ev ? [ev.gradient_from, ev.gradient_to] : DEFAULT_GRADIENT,
+      coverImageUrl: ev?.cover_image_url || null,
+      buyerName: o.buyer_name || null,
+      total: o.total || null,
     }
     ;(isUpcoming ? upcoming : past).push(shaped)
   }
