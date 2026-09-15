@@ -144,7 +144,7 @@ export default function Catalog() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Поиск po названию…"
+            placeholder="Поиск по названию…"
             className="border border-border-2 bg-white rounded-[10px] px-4 py-2.5 text-sm text-ink-2 placeholder:text-muted min-w-[180px] sm:min-w-[220px] outline-none focus:border-teal"
           />
           <FilterSelect
