@@ -26,6 +26,22 @@ const NAV_ITEMS = [
     ),
   },
   {
+    key: 'scan',
+    label: 'Сканировать билеты',
+    to: '/organizer/scan',
+    icon: (c) => (
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+        <path
+          d="M4 8 V5 a1 1 0 0 1 1-1 H8 M16 4 H19 a1 1 0 0 1 1 1 V8 M20 16 V19 a1 1 0 0 1-1 1 H16 M8 20 H5 a1 1 0 0 1-1-1 V16"
+          stroke={c}
+          strokeWidth="1.6"
+          strokeLinecap="round"
+        />
+        <line x1="4" y1="12" x2="20" y2="12" stroke={c} strokeWidth="1.6" />
+      </svg>
+    ),
+  },
+  {
     key: 'payouts',
     label: 'Продажи и выплаты',
     to: '/organizer',
