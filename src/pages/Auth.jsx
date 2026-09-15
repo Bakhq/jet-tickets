@@ -164,6 +164,10 @@ export default function Auth() {
                     key={s}
                     type="button"
                     title="Пока недоступно в демо-версии"
+                    onClick={() => {
+                      setError('')
+                      setInfo(`Вход через ${s} скоро будет доступен.`)
+                    }}
                     className="flex-1 text-center border border-border-2 rounded-[10px] py-2.5 sm:py-[11px] text-[13px] font-semibold text-[#4A473F] hover:border-muted-light transition-colors"
                   >
                     {s}
