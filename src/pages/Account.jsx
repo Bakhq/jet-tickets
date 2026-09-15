@@ -39,17 +39,60 @@ const SIDE_ITEMS = [
   },
 ]
 
+// Ticket "download" has no PDF generator on the backend yet, so this builds
+// a plain-text e-ticket client-side and saves it via a Blob — real, working
+// functionality without needing a server-side ticketing service for a first pass.
+function buildTicketText(ticket) {
+  return [
+    'JETŪNA — ЭЛЕКТРОННЫЙ БИЛЕТ',
+    '',
+    `Мероприятие: ${ticket.eventTitle}`,
+    `Дата: ${ticket.date}`,
+    `Место: ${ticket.venue}`,
+    `Билет: ${ticket.tier} × ${ticket.qty}`,
+    `Номер заказа: ${ticket.orderNumber}`,
+    `Статус: ${ticket.status}`,
+  ].join('\n')
+}
+
+function downloadTicketFile(ticket) {
+  const blob = new Blob([buildTicketText(ticket)], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `jetuna-ticket-${ticket.orderNumber}.txt`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
 function TicketCard({ ticket }) {
+  const [showQR, setShowQR] = useState(false)
+  const qrData = encodeURIComponent(`Jetūna · ${ticket.eventTitle} · Заказ №${ticket.orderNumber}`)
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${qrData}`
+
   return (
-    <div className="bg-white border border-border rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-5 hover:shadow-[0_12px_28px_rgba(11,10,13,0.06)] transition-shadow">
-      <div className="flex gap-4">
-        <div
-          className="w-14 h-14 rounded-xl shrink-0 flex items-center justify-center"
-          style={{ background: `linear-gradient(160deg, ${ticket.gradient[0]}, ${ticket.gradient[1]})` }}
-        >
-          <JetMark size={28} />
+    <>
+      <div className="bg-white border border-border rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-5 hover:shadow-[0_12px_28px_rgba(11,10,13,0.06)] transition-shadow">
+        <div className="flex gap-4">
+          <div
+            className="w-14 h-14 rounded-xl shrink-0 flex items-center justify-center"
+            style={{ background: `linear-gradient(160deg, ${ticket.gradient[0]}, ${ticket.gradient[1]})` }}
+          >
+            <JetMark size={28} />
+          </div>
+          <div className="flex-1 sm:hidden">
+            <div className="text-base font-semibold text-ink-2 mb-1">{ticket.eventTitle}</div>
+            <div className="text-[13px] text-muted mb-1.5">
+              {ticket.date} · {ticket.venue}
+            </div>
+            <div className="text-[13px] text-muted-2">
+              {ticket.tier} × {ticket.qty} · Заказ №{ticket.orderNumber}
+            </div>
+          </div>
         </div>
-        <div className="flex-1 sm:hidden">
+        <div className="hidden sm:block flex-1">
           <div className="text-base font-semibold text-ink-2 mb-1">{ticket.eventTitle}</div>
           <div className="text-[13px] text-muted mb-1.5">
             {ticket.date} · {ticket.venue}
@@ -58,30 +101,58 @@ function TicketCard({ ticket }) {
             {ticket.tier} × {ticket.qty} · Заказ №{ticket.orderNumber}
           </div>
         </div>
-      </div>
-      <div className="hidden sm:block flex-1">
-        <div className="text-base font-semibold text-ink-2 mb-1">{ticket.eventTitle}</div>
-        <div className="text-[13px] text-muted mb-1.5">
-          {ticket.date} · {ticket.venue}
+        <div className="flex items-center justify-between sm:contents">
+          <span className="inline-block text-[11px] font-semibold tracking-wide uppercase text-teal-deep bg-teal/[0.12] px-[11px] py-[5px] rounded-md shrink-0">
+            {ticket.status}
+          </span>
+          <div className="flex gap-2.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowQR(true)}
+              className="border border-border-2 rounded-[9px] px-3.5 sm:px-4 py-2.5 text-[12.5px] sm:text-[13px] font-semibold text-ink-2 hover:bg-[#F0EEE6] transition-colors"
+            >
+              QR-код
+            </button>
+            <button
+              type="button"
+              onClick={() => downloadTicketFile(ticket)}
+              className="bg-ink text-cream rounded-[9px] px-3.5 sm:px-4 py-2.5 text-[12.5px] sm:text-[13px] font-semibold hover:opacity-85 transition-opacity"
+            >
+              Скачать
+            </button>
+          </div>
         </div>
-        <div className="text-[13px] text-muted-2">
-          {ticket.tier} × {ticket.qty} · Заказ №{ticket.orderNumber}
-        </div>
       </div>
-      <div className="flex items-center justify-between sm:contents">
-        <span className="inline-block text-[11px] font-semibold tracking-wide uppercase text-teal-deep bg-teal/[0.12] px-[11px] py-[5px] rounded-md shrink-0">
-          {ticket.status}
-        </span>
-        <div className="flex gap-2.5 shrink-0">
-          <button className="border border-border-2 rounded-[9px] px-3.5 sm:px-4 py-2.5 text-[12.5px] sm:text-[13px] font-semibold text-ink-2">
-            QR-код
-          </button>
-          <button className="bg-ink text-cream rounded-[9px] px-3.5 sm:px-4 py-2.5 text-[12.5px] sm:text-[13px] font-semibold">
-            Скачать
-          </button>
+
+      {showQR && (
+        <div
+          className="fixed inset-0 bg-ink/60 flex items-center justify-center z-50 px-5"
+          onClick={() => setShowQR(false)}
+        >
+          <div
+            className="bg-white rounded-2xl p-6 max-w-[320px] w-full text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-base font-semibold text-ink-2 mb-1">{ticket.eventTitle}</div>
+            <div className="text-[13px] text-muted mb-4">Заказ №{ticket.orderNumber}</div>
+            <img
+              src={qrUrl}
+              alt="QR-код билета"
+              width={240}
+              height={240}
+              className="mx-auto rounded-xl border border-border"
+            />
+            <button
+              type="button"
+              onClick={() => setShowQR(false)}
+              className="mt-5 w-full border border-border-2 rounded-[10px] py-2.5 text-sm font-semibold text-ink-2 hover:bg-[#F0EEE6] transition-colors"
+            >
+              Закрыть
+            </button>
+          </div>
         </div>
-      </div>
-    </div>
+      )}
+    </>
   )
 }
 
