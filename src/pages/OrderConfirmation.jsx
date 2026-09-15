@@ -5,6 +5,36 @@ import { MinimalFooter } from '../components/Footer.jsx'
 import JetMark from '../components/JetMark.jsx'
 import { getEvent } from '../lib/api.js'
 
+// Same client-side plain-text e-ticket approach as the "Скачать" button on
+// the account page — no PDF/ticketing backend exists yet, so this builds a
+// real, working download instead of leaving the button inert.
+function buildTicketText({ event, selections, orderNumber, buyerEmail, total }) {
+  const lines = [
+    'JETŪNA — ЭЛЕКТРОННЫЙ БИЛЕТ',
+    '',
+    `Мероприятие: ${event.title}`,
+    `Дата: ${event.date}, ${event.time}`,
+    `Место: ${event.venue}`,
+  ]
+  selections.forEach((s) => lines.push(`Билет: ${s.tierName} × ${s.qty}`))
+  lines.push(`Итого оплачено: ${total.toLocaleString('ru-RU')} ₽`)
+  lines.push(`Номер заказа: ${orderNumber}`)
+  lines.push(`Email: ${buyerEmail}`)
+  return lines.join('\n')
+}
+
+function downloadTicketFile(text, filename) {
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
 export default function OrderConfirmation() {
   const { state } = useLocation()
   const navigate = useNavigate()
@@ -104,6 +134,12 @@ export default function OrderConfirmation() {
           <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3">
             <button
               type="button"
+              onClick={() =>
+                downloadTicketFile(
+                  buildTicketText({ event, selections, orderNumber, buyerEmail, total }),
+                  `jetuna-ticket-${orderNumber}.txt`
+                )
+              }
               className="flex-1 text-center bg-teal text-ink font-semibold text-[13.5px] sm:text-sm py-3 sm:py-[13px] rounded-[10px] hover:opacity-85 transition-opacity"
             >
               Скачать билет
