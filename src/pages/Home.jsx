@@ -229,7 +229,7 @@ export default function Home() {
           <div className="text-sm text-muted py-8 text-center">Загружаем события…</div>
         ) : loadError ? (
           <div className="text-sm text-muted py-8 text-center">
-            Не удалось загрузить событию. Проверьте подключение к Supabase — см. SETUP.md.
+            Не удалось загрузить события. Проверьте подключение к Supabase — см. SETUP.md.
           </div>
         ) : featured.length === 0 ? (
           <div className="text-sm text-muted py-8 text-center">Пока нет опубликованных событий.</div>
@@ -238,7 +238,7 @@ export default function Home() {
             {featured.map((event) => (
               <EventCard key={event.id} event={event} />
             ))}
-        </div>
+          </div>
         )}
       </div>
 
