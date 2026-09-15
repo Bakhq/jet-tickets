@@ -4,41 +4,13 @@ import SimpleHeader from '../components/SimpleHeader.jsx'
 import { MinimalFooter } from '../components/Footer.jsx'
 import JetMark from '../components/JetMark.jsx'
 import { getEvent } from '../lib/api.js'
-
-// Same client-side plain-text e-ticket approach as the "Скачать" button on
-// the account page — no PDF/ticketing backend exists yet, so this builds a
-// real, working download instead of leaving the button inert.
-function buildTicketText({ event, selections, orderNumber, buyerEmail, total }) {
-  const lines = [
-    'JETŪNA — ЭЛЕКТРОННЫЙ БИЛЕТ',
-    '',
-    `Мероприятие: ${event.title}`,
-    `Дата: ${event.date}, ${event.time}`,
-    `Место: ${event.venue}`,
-  ]
-  selections.forEach((s) => lines.push(`Билет: ${s.tierName} × ${s.qty}`))
-  lines.push(`Итого оплачено: ${total.toLocaleString('ru-RU')} ₽`)
-  lines.push(`Номер заказа: ${orderNumber}`)
-  lines.push(`Email: ${buyerEmail}`)
-  return lines.join('\n')
-}
-
-function downloadTicketFile(text, filename) {
-  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
-}
+import { downloadTicketPdf } from '../lib/ticketPdf.js'
 
 export default function OrderConfirmation() {
   const { state } = useLocation()
   const navigate = useNavigate()
   const [event, setEvent] = useState(null)
+  const [downloading, setDownloading] = useState(false)
 
   // If someone lands here without having gone through checkout, send them back
   // rather than fabricate an order that doesn't exist.
@@ -57,13 +29,36 @@ export default function OrderConfirmation() {
 
   if (!state || !event) return null
 
-  const { selections, total, orderId, orderNumber, buyerEmail } = state
+  const { selections, total, orderId, orderNumber, buyerEmail, buyerName } = state
   // Same api.qrserver.com pattern as the account page's QR modal — the code
   // is the order's own uuid, checked against the database at the door
   // (see Scan.jsx / check_in_ticket RPC), not just a decorative image.
   const qrUrl = orderId
     ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(orderId)}`
     : null
+
+  const handleDownload = async () => {
+    setDownloading(true)
+    try {
+      await downloadTicketPdf({
+        id: orderId,
+        eventTitle: event.title,
+        dateLine: `${event.date}, ${event.time}`,
+        venue: event.venue,
+        tierLine: selections.map((s) => `${s.tierName} × ${s.qty}`).join(', '),
+        orderNumber,
+        buyerName,
+        totalLabel: `${total.toLocaleString('ru-RU')} ₽`,
+        status: 'Оплачено',
+        coverImageUrl: event.coverImageUrl,
+        gradient: event.gradient,
+      })
+    } catch {
+      alert('Не удалось сформировать PDF-билет. Попробуйте ещё раз.')
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -140,15 +135,11 @@ export default function OrderConfirmation() {
           <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3">
             <button
               type="button"
-              onClick={() =>
-                downloadTicketFile(
-                  buildTicketText({ event, selections, orderNumber, buyerEmail, total }),
-                  `jetuna-ticket-${orderNumber}.txt`
-                )
-              }
-              className="flex-1 text-center bg-teal text-ink font-semibold text-[13.5px] sm:text-sm py-3 sm:py-[13px] rounded-[10px] hover:opacity-85 transition-opacity"
+              onClick={handleDownload}
+              disabled={downloading}
+              className="flex-1 text-center bg-teal text-ink font-semibold text-[13.5px] sm:text-sm py-3 sm:py-[13px] rounded-[10px] hover:opacity-85 transition-opacity disabled:opacity-60"
             >
-              Скачать билет
+              {downloading ? 'Формируем…' : 'Скачать билет (PDF)'}
             </button>
             <Link
               to="/account"
