@@ -113,7 +113,7 @@ export default function Checkout() {
       await markOrderPaid(orderId, payment.reference)
 
       navigate('/checkout/confirmation', {
-        state: { eventId, selections, subtotal: sub, fee: f, total: t, orderNumber, buyerEmail: email },
+        state: { eventId, selections, subtotal: sub, fee: f, total: t, orderId, orderNumber, buyerEmail: email },
       })
     } catch (err) {
       setError(err.message || 'Не удалось оформить заказ. Попробуйте ещё раз.')
