@@ -1,8 +1,14 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import OrganizerShell from '../components/OrganizerShell.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
-import { createEvent } from '../lib/api.js'
+import { createEvent, generateEventSlug } from '../lib/api.js'
+import { supabase } from '../lib/supabaseClient.js'
+
+// Mirrors the event-covers bucket's own restrictions (see Storage settings)
+// so a rejected file gets a clear message here instead of a raw upload error.
+const MAX_COVER_BYTES = 5 * 1024 * 1024
+const ALLOWED_COVER_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
 let nextTierId = 4
 
@@ -68,6 +74,11 @@ export default function EventCreate() {
   const [saved, setSaved] = useState(null)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [coverFile, setCoverFile] = useState(null)
+  const [coverPreview, setCoverPreview] = useState(null)
+  const [coverError, setCoverError] = useState('')
+  const [uploadingCover, setUploadingCover] = useState(false)
+  const coverInputRef = useRef(null)
 
   const updateTier = (id, field, value) =>
     setTiers((list) => list.map((t) => (t.id === id ? { ...t, [field]: value } : t)))
@@ -76,6 +87,34 @@ export default function EventCreate() {
 
   const addTier = () =>
     setTiers((list) => [...list, { id: nextTierId++, name: '', price: '', qty: '' }])
+
+  const acceptCoverFile = (file) => {
+    if (!file) return
+    setCoverError('')
+    if (!ALLOWED_COVER_TYPES.includes(file.type)) {
+      setCoverError('Поддерживаются только JPG, PNG и WEBP.')
+      return
+    }
+    if (file.size > MAX_COVER_BYTES) {
+      setCoverError('Файл больше 5 МБ — выберите изображение меньшего размера.')
+      return
+    }
+    setCoverFile(file)
+    setCoverPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return URL.createObjectURL(file)
+    })
+  }
+
+  const removeCover = () => {
+    setCoverPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return null
+    })
+    setCoverFile(null)
+    setCoverError('')
+    if (coverInputRef.current) coverInputRef.current.value = ''
+  }
 
   const buildAndSave = async (formEl, publish) => {
     setError('')
@@ -104,6 +143,29 @@ export default function EventCreate() {
 
     setSubmitting(true)
     try {
+      // The slug doubles as the storage path for the cover, so it has to
+      // exist before the upload — createEvent then reuses this exact slug
+      // instead of minting its own.
+      const slug = generateEventSlug()
+      let coverImageUrl = null
+
+      if (coverFile) {
+        setUploadingCover(true)
+        const ext = (coverFile.name.split('.').pop() || 'jpg').toLowerCase()
+        const path = `${user.id}/${slug}.${ext}`
+        const { error: uploadErr } = await supabase.storage
+          .from('event-covers')
+          .upload(path, coverFile, { cacheControl: '3600', upsert: true, contentType: coverFile.type })
+        setUploadingCover(false)
+        if (uploadErr) {
+          setError('Не удалось загрузить обложку: ' + (uploadErr.message || 'ошибка загрузки'))
+          setSubmitting(false)
+          return
+        }
+        const { data: pub } = supabase.storage.from('event-covers').getPublicUrl(path)
+        coverImageUrl = pub?.publicUrl || null
+      }
+
       await createEvent({
         organizerId: user.id,
         title,
@@ -121,6 +183,8 @@ export default function EventCreate() {
           capacity: Number(String(t.qty).replace(/\D/g, '')) || 0,
         })),
         publish,
+        slug,
+        coverImageUrl,
       })
       setSaved(publish ? 'published' : 'draft')
       setTimeout(() => navigate('/organizer'), 1200)
@@ -212,19 +276,62 @@ export default function EventCreate() {
           <div className="text-[15px] sm:text-base font-bold text-ink-2 mb-4 sm:mb-5">
             Обложка события
           </div>
-          <label className="border-[1.5px] border-dashed border-border-2 rounded-xl px-6 py-7 sm:py-8 flex flex-col items-center gap-2 cursor-pointer">
-            <input type="file" accept="image/*" className="hidden" />
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-              <path d="M12 4 V16 M6 10 L12 4 L18 10" stroke="#B7B2A5" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M4 18 H20" stroke="#B7B2A5" strokeWidth="1.6" strokeLinecap="round" />
-            </svg>
-            <div className="text-[12.5px] sm:text-[13px] text-muted text-center">
-              Перетащите изображение или <span className="text-teal-deep font-semibold">выберите файл</span>
+
+          {coverPreview ? (
+            <div className="relative rounded-xl overflow-hidden border border-border-2">
+              <img src={coverPreview} alt="Превью обложки" className="w-full h-[160px] sm:h-[200px] object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/0 to-black/0 pointer-events-none" />
+              <div className="absolute bottom-3 right-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => coverInputRef.current?.click()}
+                  className="text-[12px] font-semibold text-ink bg-cream/95 px-3 py-1.5 rounded-lg hover:opacity-90"
+                >
+                  Заменить
+                </button>
+                <button
+                  type="button"
+                  onClick={removeCover}
+                  className="text-[12px] font-semibold text-cream bg-ink/80 px-3 py-1.5 rounded-lg hover:opacity-90"
+                >
+                  Удалить
+                </button>
+              </div>
+              {uploadingCover && (
+                <div className="absolute inset-0 bg-ink/60 flex items-center justify-center text-cream text-[13px] font-semibold">
+                  Загружаем…
+                </div>
+              )}
             </div>
-            <div className="text-[10.5px] sm:text-[11px] text-muted-light">
-              JPG, PNG — рекомендуем 1600×900. Загрузка изображений скоро появится — пока используется фирменный градиент.
-            </div>
-          </label>
+          ) : (
+            <label
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault()
+                acceptCoverFile(e.dataTransfer.files?.[0])
+              }}
+              className="border-[1.5px] border-dashed border-border-2 rounded-xl px-6 py-7 sm:py-8 flex flex-col items-center gap-2 cursor-pointer hover:border-teal transition-colors"
+            >
+              <input
+                ref={coverInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={(e) => acceptCoverFile(e.target.files?.[0])}
+              />
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+                <path d="M12 4 V16 M6 10 L12 4 L18 10" stroke="#B7B2A5" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M4 18 H20" stroke="#B7B2A5" strokeWidth="1.6" strokeLinecap="round" />
+              </svg>
+              <div className="text-[12.5px] sm:text-[13px] text-muted text-center">
+                Перетащите изображение или <span className="text-teal-deep font-semibold">выберите файл</span>
+              </div>
+              <div className="text-[10.5px] sm:text-[11px] text-muted-light">
+                JPG, PNG, WEBP до 5 МБ — рекомендуем 1600×900. Без обложки используется фирменный градиент.
+              </div>
+            </label>
+          )}
+          {coverError && <div className="text-[12.5px] text-danger font-semibold mt-2.5">{coverError}</div>}
         </div>
 
         {/* TICKET TIERS */}
