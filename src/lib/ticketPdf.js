@@ -161,7 +161,7 @@ export async function downloadTicketPdf(ticket) {
   doc.setTextColor(183, 178, 165)
   doc.setFont(fontFamily, 'normal')
   doc.setFontSize(9)
-  doc.text('ЭЛЕКТРОННЫЙ БИКЕТ', margin, 56)
+  doc.text('ЭЛЕКТРОННЫЙ БИЛЕТ', margin, 56)
 
   let y = 72
 
