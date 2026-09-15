@@ -119,9 +119,29 @@ export default function EventDetail() {
       }
       return
     }
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(url)
+        setToast('Ссылка скопирована')
+        return
+      } catch {
+        // fall through to the legacy copy method below
+      }
+    }
+    // The Clipboard API only exists in a secure context (HTTPS), so on a
+    // plain-HTTP origin navigator.clipboard is undefined entirely — this
+    // legacy textarea+execCommand trick still works there.
     try {
-      await navigator.clipboard.writeText(url)
-      setToast('Ссылка скопирована')
+      const textarea = document.createElement('textarea')
+      textarea.value = url
+      textarea.style.position = 'fixed'
+      textarea.style.opacity = '0'
+      document.body.appendChild(textarea)
+      textarea.focus()
+      textarea.select()
+      const copied = document.execCommand('copy')
+      document.body.removeChild(textarea)
+      setToast(copied ? 'Ссылка скопирована' : 'Не удалось скопировать ссылку')
     } catch {
       setToast('Не удалось скопировать ссылку')
     }
