@@ -8,6 +8,7 @@ import OrderConfirmation from './pages/OrderConfirmation.jsx'
 import Account from './pages/Account.jsx'
 import Organizer from './pages/Organizer.jsx'
 import EventCreate from './pages/EventCreate.jsx'
+import Scan from './pages/Scan.jsx'
 import Auth from './pages/Auth.jsx'
 import { useAuth } from './context/AuthContext.jsx'
 
@@ -79,6 +80,14 @@ export default function App() {
           element={
             <RequireOrganizer>
               <EventCreate />
+            </RequireOrganizer>
+          }
+        />
+        <Route
+          path="/organizer/scan"
+          element={
+            <RequireOrganizer>
+              <Scan />
             </RequireOrganizer>
           }
         />
