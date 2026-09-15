@@ -169,6 +169,19 @@ export async function markOrderPaid(orderId, paymentRef) {
   if (error) throw error
 }
 
+// Called from the organizer-facing scanner page (Scan.jsx) after decoding a
+// ticket's QR code — the code IS the order's uuid, so there's nothing to look
+// up client-side first. The RPC itself checks that the order is paid, not
+// already used, and belongs to an event owned by the scanning organizer, and
+// returns one of: ok | already_checked_in | not_paid | not_found | forbidden.
+export async function checkInTicket(orderId) {
+  const { data, error } = await supabase.rpc('check_in_ticket', {
+    p_order_id: orderId,
+  })
+  if (error) throw error
+  return data
+}
+
 // ---------------------------------------------------------------- account / tickets ----------------------------------------------------------------
 
 export async function getProfile(userId) {
@@ -209,6 +222,7 @@ export async function listUserTickets(userId) {
     const tierLabel = (o.order_items || []).map((i) => i.tier_name).join(', ') || '—'
     const isUpcoming = ev ? ev.event_date >= todayIso : true
     const shaped = {
+      id: o.id,
       orderNumber: o.order_number,
       eventTitle: ev?.title || 'Событие',
       date: ev ? `${formatEventDate(ev.event_date)}, ${formatEventTime(ev.event_time)}` : '',
