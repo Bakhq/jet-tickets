@@ -4,7 +4,7 @@ import Header from '../components/Header.jsx'
 import { Footer } from '../components/Footer.jsx'
 import JetMark from '../components/JetMark.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
-import { listUserTickets } from '../lib/api.js'
+import { listUserTickets, updateProfile } from '../lib/api.js'
 import { downloadTicketPdf } from '../lib/ticketPdf.js'
 
 const SIDE_ITEMS = [
@@ -21,20 +21,20 @@ const SIDE_ITEMS = [
   {
     key: 'profile',
     label: 'Профиль',
-    icon: () => (
+    icon: (active) => (
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
-        <path d="M4 19 C4 15 7.5 13 12 13 C16.5 13 20 15 20 19" stroke="#726E63" strokeWidth="1.6" strokeLinecap="round" />
-        <circle cx="12" cy="8" r="3.5" stroke="#726E63" strokeWidth="1.6" />
+        <path d="M4 19 C4 15 7.5 13 12 13 C16.5 13 20 15 20 19" stroke={active ? '#0E9E92' : '#726E63'} strokeWidth="1.6" strokeLinecap="round" />
+        <circle cx="12" cy="8" r="3.5" stroke={active ? '#0E9E92' : '#726E63'} strokeWidth="1.6" />
       </svg>
     ),
   },
   {
     key: 'payments',
     label: 'Способы оплаты',
-    icon: () => (
+    icon: (active) => (
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
-        <rect x="3" y="6" width="18" height="12" rx="2" stroke="#726E63" strokeWidth="1.6" />
-        <line x1="3" y1="10" x2="21" y2="10" stroke="#726E63" strokeWidth="1.6" />
+        <rect x="3" y="6" width="18" height="12" rx="2" stroke={active ? '#0E9E92' : '#726E63'} strokeWidth="1.6" />
+        <line x1="3" y1="10" x2="21" y2="10" stroke={active ? '#0E9E92' : '#726E63'} strokeWidth="1.6" />
       </svg>
     ),
   },
@@ -158,7 +158,115 @@ function TicketCard({ ticket }) {
   )
 }
 
+function ProfileSection() {
+  const { user, profile } = useAuth()
+  const [fullName, setFullName] = useState(profile?.full_name || '')
+  const [phone, setPhone] = useState(profile?.phone || '')
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState(null)
+
+  // The form only ever reflects the profile that was loaded when this
+  // section first mounted; if it changes under us (e.g. another tab), pick
+  // up the fresh values rather than silently overwrite them on next save.
+  useEffect(() => {
+    setFullName(profile?.full_name || '')
+    setPhone(profile?.phone || '')
+  }, [profile?.full_name, profile?.phone])
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!user) return
+    setSaving(true)
+    setMessage(null)
+    try {
+      await updateProfile(user.id, { full_name: fullName.trim() || null, phone: phone.trim() || null })
+      setMessage({ type: 'ok', text: 'Изменения сохранены.' })
+    } catch (err) {
+      setMessage({ type: 'error', text: err.message || 'Не удалось сохранить изменения.' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="bg-white border border-border rounded-2xl p-5 sm:p-7 max-w-[520px]">
+      <div className="text-base sm:text-lg font-bold text-ink-2 mb-5">Личные данные</div>
+
+      {message && (
+        <div
+          className={`text-[13px] font-semibold rounded-xl px-3.5 py-3 mb-4 ${
+            message.type === 'ok'
+              ? 'bg-teal/[0.12] border border-teal/30 text-teal-deep'
+              : 'bg-danger/10 border border-danger/25 text-danger'
+          }`}
+        >
+          {message.text}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <label className="block">
+          <span className="block text-[12.5px] sm:text-[13px] font-semibold text-[#4A473F] mb-2">Имя</span>
+          <input
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            className="w-full border border-border-2 rounded-[10px] px-4 py-[13px] text-sm text-ink-2 outline-none focus:border-teal"
+          />
+        </label>
+        <label className="block">
+          <span className="block text-[12.5px] sm:text-[13px] font-semibold text-[#4A473F] mb-2">Телефон</span>
+          <input
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="+7 900 000-00-00"
+            className="w-full border border-border-2 rounded-[10px] px-4 py-[13px] text-sm text-ink-2 outline-none focus:border-teal"
+          />
+        </label>
+        <label className="block">
+          <span className="block text-[12.5px] sm:text-[13px] font-semibold text-[#4A473F] mb-2">Email</span>
+          <input
+            value={profile?.email || user?.email || ''}
+            disabled
+            className="w-full border border-border-2 rounded-[10px] px-4 py-[13px] text-sm text-muted bg-[#F5F3EF] outline-none"
+          />
+          <span className="block text-[11.5px] text-muted-light mt-1.5">
+            Email нельзя изменить здесь — он привязан к входу в аккаунт.
+          </span>
+        </label>
+
+        <button
+          type="submit"
+          disabled={saving}
+          className="self-start bg-teal text-ink font-semibold text-sm px-5 py-3 rounded-[10px] hover:opacity-85 transition-opacity disabled:opacity-60"
+        >
+          {saving ? 'Сохраняем…' : 'Сохранить изменения'}
+        </button>
+      </form>
+    </div>
+  )
+}
+
+function PaymentsSection() {
+  return (
+    <div className="bg-white border border-border rounded-2xl p-5 sm:p-7 max-w-[520px] text-center">
+      <div className="w-11 h-11 rounded-full bg-[#F0EEE6] flex items-center justify-center mx-auto mb-4">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <rect x="3" y="6" width="18" height="12" rx="2" stroke="#726E63" strokeWidth="1.6" />
+          <line x1="3" y1="10" x2="21" y2="10" stroke="#726E63" strokeWidth="1.6" />
+        </svg>
+      </div>
+      <div className="text-[15px] font-semibold text-ink-2 mb-1.5">Сохранённых способов оплаты пока нет</div>
+      <div className="text-[13px] leading-relaxed text-muted">
+        Сайт сейчас принимает оплату в тестовом режиме, поэтому сохранять карту не нужно — при
+        оформлении заказа достаточно указать способ оплаты один раз. Когда подключится приём
+        настоящих платежей, здесь появится возможность сохранить карту для быстрой оплаты.
+      </div>
+    </div>
+  )
+}
+
 export default function Account() {
+  const [section, setSection] = useState('tickets')
   const [tab, setTab] = useState('upcoming')
   const [tickets, setTickets] = useState({ upcoming: [], past: [] })
   const [loading, setLoading] = useState(true)
@@ -180,6 +288,8 @@ export default function Account() {
   const list = tab === 'upcoming' ? tickets.upcoming : tickets.past
   const initials = (profile?.full_name || user?.email || '?')[0].toUpperCase()
   const fullName = profile?.full_name || user?.email || 'Аккаунт'
+
+  const sectionTitle = { tickets: 'Мои билеты', profile: 'Профиль', payments: 'Способы оплаты' }[section]
 
   const handleSignOut = async () => {
     await signOut()
@@ -205,12 +315,15 @@ export default function Account() {
           {SIDE_ITEMS.map((item) => (
             <button
               key={item.key}
-              onClick={() => item.key === 'tickets' && setTab('upcoming')}
+              onClick={() => {
+                setSection(item.key)
+                if (item.key === 'tickets') setTab('upcoming')
+              }}
               className={`shrink-0 flex items-center gap-2.5 rounded-[10px] px-3.5 py-3 text-sm font-semibold transition-colors ${
-                item.key === 'tickets' ? 'bg-teal/10 text-teal-deep' : 'text-[#4A473F] hover:bg-[#F0EEE6]'
+                item.key === section ? 'bg-teal/10 text-teal-deep' : 'text-[#4A473F] hover:bg-[#F0EEE6]'
               }`}
             >
-              {item.icon(item.key === 'tickets')}
+              {item.icon(item.key === section)}
               {item.label}
             </button>
           ))}
@@ -229,41 +342,48 @@ export default function Account() {
         {/* CONTENT */}
         <div className="flex-1 w-full">
           <div className="text-2xl sm:text-[30px] font-bold tracking-tight text-ink-2 mb-5 sm:mb-6">
-            Мои билеты
+            {sectionTitle}
           </div>
 
-          <div className="flex gap-5 sm:gap-7 border-b border-border mb-5 sm:mb-7">
-            <button
-              onClick={() => setTab('upcoming')}
-              className={`text-sm font-semibold pb-3 border-b-2 -mb-px transition-colors ${
-                tab === 'upcoming' ? 'text-ink-2 border-teal' : 'text-muted border-transparent'
-              }`}
-            >
-              Предстоящие ({tickets.upcoming.length})
-            </button>
-            <button
-              onClick={() => setTab('past')}
-              className={`text-sm font-semibold pb-3 border-b-2 -mb-px transition-colors ${
-                tab === 'past' ? 'text-ink-2 border-teal' : 'text-muted border-transparent'
-              }`}
-            >
-              Прошедшие ({tickets.past.length})
-            </button>
-          </div>
+          {section === 'tickets' && (
+            <>
+              <div className="flex gap-5 sm:gap-7 border-b border-border mb-5 sm:mb-7">
+                <button
+                  onClick={() => setTab('upcoming')}
+                  className={`text-sm font-semibold pb-3 border-b-2 -mb-px transition-colors ${
+                    tab === 'upcoming' ? 'text-ink-2 border-teal' : 'text-muted border-transparent'
+                  }`}
+                >
+                  Предстоящие ({tickets.upcoming.length})
+                </button>
+                <button
+                  onClick={() => setTab('past')}
+                  className={`text-sm font-semibold pb-3 border-b-2 -mb-px transition-colors ${
+                    tab === 'past' ? 'text-ink-2 border-teal' : 'text-muted border-transparent'
+                  }`}
+                >
+                  Проишедшие ({tickets.past.length})
+                </button>
+              </div>
 
-          {loading ? (
-            <div className="text-sm text-muted py-8 text-center">Загружаем билеты…</div>
-          ) : list.length === 0 ? (
-            <div className="text-sm text-muted py-8 text-center">
-              {tab === 'upcoming' ? 'Пока нет предстоящих билетов.' : 'Пока нет прошедших билетов.'}
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3.5 sm:gap-4">
-              {list.map((ticket) => (
-                <TicketCard key={ticket.orderNumber} ticket={ticket} />
-              ))}
-            </div>
+              {loading ? (
+                <div className="text-sm text-muted py-8 text-center">Загружаем билеты…</div>
+              ) : list.length === 0 ? (
+                <div className="text-sm text-muted py-8 text-center">
+                  {tab === 'upcoming' ? 'Пока нет предстоящих билетов.' : 'Пока нет прошедших билетов.'}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3.5 sm:gap-4">
+                  {list.map((ticket) => (
+                    <TicketCard key={ticket.orderNumber} ticket={ticket} />
+                  ))}
+                </div>
+              )}
+            </>
           )}
+
+          {section === 'profile' && <ProfileSection />}
+          {section === 'payments' && <PaymentsSection />}
         </div>
       </div>
 
