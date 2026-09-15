@@ -57,7 +57,13 @@ export default function OrderConfirmation() {
 
   if (!state || !event) return null
 
-  const { selections, total, orderNumber, buyerEmail } = state
+  const { selections, total, orderId, orderNumber, buyerEmail } = state
+  // Same api.qrserver.com pattern as the account page's QR modal — the code
+  // is the order's own uuid, checked against the database at the door
+  // (see Scan.jsx / check_in_ticket RPC), not just a decorative image.
+  const qrUrl = orderId
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(orderId)}`
+    : null
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -153,6 +159,24 @@ export default function OrderConfirmation() {
           </div>
         </div>
       </div>
+
+      {qrUrl && (
+        <div className="flex justify-center px-5 pb-8 sm:pb-14 -mt-2 sm:-mt-6">
+          <div className="w-full max-w-[560px] bg-white border border-border rounded-2xl p-5 sm:p-7 text-center">
+            <div className="text-[14.5px] sm:text-base font-bold text-ink-2 mb-1">Билет для входа</div>
+            <div className="text-xs sm:text-[13px] text-muted mb-4 sm:mb-5">
+              Покажите этот QR-код на входе — его отсканирует организатор
+            </div>
+            <img
+              src={qrUrl}
+              alt="QR-код билета"
+              width={200}
+              height={200}
+              className="mx-auto rounded-xl border border-border"
+            />
+          </div>
+        </div>
+      )}
 
       <div className="text-center pb-8 sm:pb-16">
         <Link to="/" className="text-[13.5px] sm:text-sm font-semibold text-teal-deep">
