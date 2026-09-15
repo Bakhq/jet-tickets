@@ -362,7 +362,7 @@ export default function Account() {
                     tab === 'past' ? 'text-ink-2 border-teal' : 'text-muted border-transparent'
                   }`}
                 >
-                  Проишедшие ({tickets.past.length})
+                  Прошедшие ({tickets.past.length})
                 </button>
               </div>
 
