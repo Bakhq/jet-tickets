@@ -69,7 +69,11 @@ function downloadTicketFile(ticket) {
 
 function TicketCard({ ticket }) {
   const [showQR, setShowQR] = useState(false)
-  const qrData = encodeURIComponent(`Jetūna · ${ticket.eventTitle} · Заказ №${ticket.orderNumber}`)
+  // The QR encodes the order's own uuid — already unguessable — so the
+  // scanner at the door (Scan.jsx) can look it up and check it in via the
+  // check_in_ticket RPC. Falls back to the old decorative text if somehow
+  // there's no id (e.g. a ticket shaped before this field existed).
+  const qrData = encodeURIComponent(ticket.id || `Jetūna · ${ticket.eventTitle} · Заказ №${ticket.orderNumber}`)
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${qrData}`
 
   return (
