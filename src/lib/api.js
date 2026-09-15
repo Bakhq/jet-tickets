@@ -8,7 +8,11 @@ import { supabase } from './supabaseClient.js'
 
 export const SERVICE_FEE_RATE = 0.05
 
-export const CATEGORIES = ['Концерты', 'Фестивали', 'Театр', 'Спорт', 'Стендап', 'Детям']
+// Kept in sync with the category options in EventCreate.jsx (singular forms,
+// since that's what actually gets written to events.category) — this used to
+// be a separate plural list ("Концерты", "Фестивали") that never matched a
+// real event's category, silently breaking any filter/link built from it.
+export const CATEGORIES = ['Концерт', 'Фестиваль', 'Театр', 'Спорт', 'Стендап', 'Детям']
 
 // Gradient pairs used as the event's cover art whenever the organizer
 // doesn't upload their own image (see EventCreate.jsx). Picked to match the
@@ -337,4 +341,60 @@ export async function createEvent({
 export async function updateEventStatus(eventId, status) {
   const { error } = await supabase.from('events').update({ status }).eq('id', eventId)
   if (error) throw error
+}
+
+// Saves edits to an already-created event (see EventCreate.jsx's edit mode).
+// Ticket tiers need care: a tier that already has sales carries its `sold`
+// count on the same row, so existing tiers are always UPDATEd in place
+// (name/price/capacity only) rather than replaced — deleting and
+// re-inserting them would reset that count to zero and orphan any
+// order_items pointing at the old tier id. Only tiers the organizer removes
+// in this edit (passed as `removedTierIds`) are actually deleted, and only
+// the caller is expected to have kept the ones with `sold > 0` out of that
+// list (EventCreate.jsx hides the remove button for those).
+//
+// Requires an RLS UPDATE policy on `events`/`ticket_tiers` scoped to the
+// event's own organizer_id — see SETUP.md for the SQL if this throws a
+// permissions error on a project created before event editing existed.
+export async function updateEvent(
+  eventId,
+  { title, category, ageRating, description, eventDate, eventTime, city, venue, address, publish, coverImageUrl, tiers, removedTierIds }
+) {
+  const patch = {
+    title,
+    category,
+    age_rating: ageRating,
+    description: description || null,
+    event_date: eventDate,
+    event_time: eventTime,
+    city,
+    venue,
+    address: address || null,
+    status: publish ? 'active' : 'draft',
+  }
+  if (coverImageUrl !== undefined) patch.cover_image_url = coverImageUrl
+
+  const { error } = await supabase.from('events').update(patch).eq('id', eventId)
+  if (error) throw error
+
+  for (let i = 0; i < (tiers || []).length; i++) {
+    const t = tiers[i]
+    if (t.id) {
+      const { error: uErr } = await supabase
+        .from('ticket_tiers')
+        .update({ name: t.name, price: t.price, capacity: t.capacity, sort_order: i })
+        .eq('id', t.id)
+      if (uErr) throw uErr
+    } else {
+      const { error: iErr } = await supabase
+        .from('ticket_tiers')
+        .insert({ event_id: eventId, name: t.name, price: t.price, capacity: t.capacity, sort_order: i })
+      if (iErr) throw iErr
+    }
+  }
+
+  if (removedTierIds?.length) {
+    const { error: dErr } = await supabase.from('ticket_tiers').delete().in('id', removedTierIds)
+    if (dErr) throw dErr
+  }
 }
