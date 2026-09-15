@@ -10,9 +10,9 @@ export const SERVICE_FEE_RATE = 0.05
 
 export const CATEGORIES = ['Концерты', 'Фестивали', 'Театр', 'Спорт', 'Стендап', 'Детям']
 
-// Gradient pairs offered when an organizer creates a new event (no cover
-// image upload yet — see EventCreate.jsx). Picked to match the palette the
-// rest of the site already uses.
+// Gradient pairs used as the event's cover art whenever the organizer
+// doesn't upload their own image (see EventCreate.jsx). Picked to match the
+// palette the rest of the site already uses.
 export const CATEGORY_GRADIENTS = {
   Концерт: ['#0E2E2B', '#0B0A0D'],
   Фестиваль: ['#0E2E2B', '#0B0A0D'],
@@ -22,6 +22,13 @@ export const CATEGORY_GRADIENTS = {
   Детям: ['#2E1620', '#17151A'],
 }
 const DEFAULT_GRADIENT = ['#0E2E2B', '#0B0A0D']
+
+// Used both when inserting a new event row and to name the file an uploaded
+// cover gets in Storage (organizer creates the slug before either request
+// so the two can share it — see EventCreate.jsx).
+export function generateEventSlug() {
+  return `evt-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+}
 
 // ---------------------------------------------------------------- formatting ----------------------------------------------------------------
 
@@ -82,6 +89,7 @@ function shapeEvent(row) {
     description: row.description,
     notes: row.notes || [],
     gradient: [row.gradient_from, row.gradient_to],
+    coverImageUrl: row.cover_image_url || null,
     status: row.status,
     priceFrom: tiers.length ? Math.min(...tiers.map((t) => t.price)) : 0,
     lowStock: totalCapacity > 0 && totalSold / totalCapacity >= 0.85,
@@ -256,14 +264,19 @@ export async function createEvent({
   address,
   tiers,
   publish,
+  slug,
+  coverImageUrl,
 }) {
-  const slug = `evt-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+  // Callers that already uploaded a cover image need the slug up front (it's
+  // the storage path), so they generate and pass it in; anyone else gets one
+  // minted here same as before.
+  const eventSlug = slug || generateEventSlug()
   const gradient = CATEGORY_GRADIENTS[category] || DEFAULT_GRADIENT
 
   const { data: event, error } = await supabase
     .from('events')
     .insert({
-      slug,
+      slug: eventSlug,
       organizer_id: organizerId,
       title,
       category,
@@ -276,6 +289,7 @@ export async function createEvent({
       description: description || null,
       gradient_from: gradient[0],
       gradient_to: gradient[1],
+      cover_image_url: coverImageUrl || null,
       status: publish ? 'active' : 'draft',
     })
     .select()
