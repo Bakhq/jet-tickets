@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import Header from '../components/Header.jsx'
 import { Footer } from '../components/Footer.jsx'
 import EventCard from '../components/EventCard.jsx'
@@ -67,25 +67,35 @@ const BENEFITS = [
   },
 ]
 
+// Sentinels the search widget hands to Catalog's own filter state (see
+// Catalog.jsx) — 'Любая' here maps to Catalog's own "no filter" option text.
+const CITY_OPTIONS = ['Москва', 'Санкт-Петербург', 'Казань', 'Екатеринбург', 'Новосибирск']
+const CATEGORY_OPTIONS = ['Любая', ...CATEGORIES]
+const DATE_OPTIONS = ['Любая', 'Сегодня', 'Эти выходные', 'Этот месяц']
+
 function SearchWidget() {
-  const [city, setCity] = useState('Москва')
+  const navigate = useNavigate()
+  const [city, setCity] = useState(CITY_OPTIONS[0])
   const [category, setCategory] = useState('Любая')
   const [date, setDate] = useState('Любая')
 
+  // Used to just link straight to /catalog with no filters applied at all —
+  // now it actually carries the three choices through as router state, which
+  // Catalog.jsx reads on mount to seed its own filter dropdowns.
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    navigate('/catalog', { state: { city, category, date } })
+  }
+
   return (
     <form
-      onSubmit={(e) => e.preventDefault()}
+      onSubmit={handleSubmit}
       className="bg-ink-2 border border-white/[0.08] rounded-2xl p-1.5 sm:p-2 sm:flex sm:items-stretch"
     >
       {[
-        { label: 'Город', value: city, set: setCity, options: ['Москва', 'Санкт-Петербург', 'Казань', 'Екатеринбург', 'Новосибирск'] },
-        {
-          label: 'Категория',
-          value: category,
-          set: setCategory,
-          options: ['Любая', 'Концерты', 'Фестивали', 'Театр', 'Спорт', 'Стендап', 'Детям'],
-        },
-        { label: 'Дата', value: date, set: setDate, options: ['Любая', 'Сегодня', 'Эти выходные', 'Этот месяц'] },
+        { label: 'Город', value: city, set: setCity, options: CITY_OPTIONS },
+        { label: 'Категория', value: category, set: setCategory, options: CATEGORY_OPTIONS },
+        { label: 'Дата', value: date, set: setDate, options: DATE_OPTIONS },
       ].map(({ label, value, set, options }, i) => (
         <label
           key={label}
@@ -110,12 +120,12 @@ function SearchWidget() {
         </label>
       ))}
       <div className="p-1.5 sm:p-0 sm:pl-2">
-        <Link
-          to="/catalog"
-          className="block text-center bg-teal text-ink font-semibold text-[15px] py-3.5 sm:py-3 sm:px-7 rounded-xl hover:opacity-85 transition-opacity"
+        <button
+          type="submit"
+          className="block w-full text-center bg-teal text-ink font-semibold text-[15px] py-3.5 sm:py-3 sm:px-7 rounded-xl hover:opacity-85 transition-opacity"
         >
           Найти
-        </Link>
+        </button>
       </div>
     </form>
   )
@@ -197,6 +207,7 @@ export default function Home() {
           <Link
             key={c}
             to="/catalog"
+            state={{ category: c }}
             className="border border-border-2 bg-white rounded-full px-4 sm:px-[18px] py-2.5 text-[13px] font-semibold text-ink-2 hover:border-teal transition-colors"
           >
             {c}
@@ -218,7 +229,7 @@ export default function Home() {
           <div className="text-sm text-muted py-8 text-center">Загружаем события…</div>
         ) : loadError ? (
           <div className="text-sm text-muted py-8 text-center">
-            Не удалось загрузить события. Проверьте подключение к Supabase — см. SETUP.md.
+            Не удалось загрузить событию. Проверьте подключение к Supabase — см. SETUP.md.
           </div>
         ) : featured.length === 0 ? (
           <div className="text-sm text-muted py-8 text-center">Пока нет опубликованных событий.</div>
@@ -227,7 +238,7 @@ export default function Home() {
             {featured.map((event) => (
               <EventCard key={event.id} event={event} />
             ))}
-          </div>
+        </div>
         )}
       </div>
 
