@@ -21,9 +21,9 @@ const COLUMNS = [
   {
     title: 'Компания',
     links: [
-      ['О нас', '/'],
-      ['Вакансии', '/'],
-      ['Контакты', '/'],
+      ['О нас', '/about'],
+      ['Вакансии', '/careers'],
+      ['Контакты', '/contacts'],
     ],
   },
   {
@@ -31,14 +31,14 @@ const COLUMNS = [
     links: [
       ['Мероприятия', '/catalog'],
       ['Города', '/catalog'],
-      ['Возврат билета', '/'],
+      ['Возврат билета', '/refund'],
     ],
   },
   {
     title: 'Организаторам',
     links: [
       ['Разместить событие', '/organizer'],
-      ['Тарифы', '/'],
+      ['Тарифы', '/pricing'],
     ],
   },
 ]
@@ -86,10 +86,10 @@ export function Footer() {
             <PaymentBadges />
           </div>
           <div className="flex gap-4.5 sm:gap-6 order-2 sm:order-3">
-            <Link to="/" className="text-[13px] text-muted-dark hover:text-cream transition-colors">
+            <Link to="/terms" className="text-[13px] text-muted-dark hover:text-cream transition-colors">
               Условия использования
             </Link>
-            <Link to="/" className="text-[13px] text-muted-dark hover:text-cream transition-colors">
+            <Link to="/privacy" className="text-[13px] text-muted-dark hover:text-cream transition-colors">
               Политика конфиденциальности
             </Link>
           </div>
@@ -105,10 +105,10 @@ export function MinimalFooter() {
     <footer className="border-t border-border px-5 sm:px-12 py-6 flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-2.5">
       <div className="text-[13px] text-muted">© 2026 Jetūna. Все права защищены.</div>
       <div className="flex gap-4.5 sm:gap-6">
-        <Link to="/" className="text-[13px] text-muted">
+        <Link to="/terms" className="text-[13px] text-muted">
           Условия использования
         </Link>
-        <Link to="/" className="text-[13px] text-muted">
+        <Link to="/privacy" className="text-[13px] text-muted">
           Политика конфиденциальности
         </Link>
       </div>
