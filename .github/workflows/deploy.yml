@@ -1,9 +1,14 @@
 name: Deploy to GitHub Pages
 
 on:
-  push:schedule:
-  - cron: '*/30 * * * *'
+  push:
     branches: [main]
+  # Event data (title/photo/description) lives in Supabase, not in this repo,
+  # so a new or edited event never triggers a push here on its own. This
+  # keeps the per-event share-preview pages (see scripts/prerender-events.mjs)
+  # from going stale by rebuilding on a schedule too, not just on code pushes.
+  schedule:
+    - cron: '*/30 * * * *'
   workflow_dispatch:
 
 permissions:
