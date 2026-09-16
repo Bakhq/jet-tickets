@@ -10,6 +10,7 @@ import Organizer from './pages/Organizer.jsx'
 import EventCreate from './pages/EventCreate.jsx'
 import Scan from './pages/Scan.jsx'
 import Auth from './pages/Auth.jsx'
+import ResetPassword from './pages/ResetPassword.jsx'
 import About from './pages/About.jsx'
 import Careers from './pages/Careers.jsx'
 import Contacts from './pages/Contacts.jsx'
@@ -108,6 +109,7 @@ export default function App() {
           }
         />
         <Route path="/auth" element={<Auth />} />
+        <Route path="/auth/reset" element={<ResetPassword />} />
         <Route path="/about" element={<About />} />
         <Route path="/careers" element={<Careers />} />
         <Route path="/contacts" element={<Contacts />} />
