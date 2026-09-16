@@ -528,7 +528,7 @@ export default function EventCreate() {
           </div>
 
           <div className="hidden sm:grid grid-cols-[2fr_1fr_1fr_32px] gap-3 mb-2.5 px-3.5 text-[11px] font-semibold tracking-wide uppercase text-muted">
-            <div>Название</div
+            <div>Название</div>
             <div>Цена</div>
             <div>Количество</div>
             <div />
@@ -556,14 +556,14 @@ export default function EventCreate() {
                       value={t.qty}
                       onChange={(e) => updateTier(t.id, 'qty', e.target.value)}
                       className="flex-1 border border-border-2 rounded-[10px] px-3.5 py-2.5 text-[13px] text-ink-2 outline-none focus:border-teal"
-                      placeholder="Кол-Bо"
+                      placeholder="Кол-во"
                     />
                     <button
                       type="button"
                       onClick={() => removeTier(t.id)}
                       disabled={locked}
                       aria-label={locked ? 'Уже есть проданные билеты — нельзя удалить' : 'Удалить тариф'}
-                      title={locked ? 'Уже есть проданные билеты по этому тариф — удалить нельзя' : undefined}
+                      title={locked ? 'Уже есть проданные билеты по этому тарифу — удалить нельзя' : undefined}
                       className="w-8 h-8 border border-border-2 rounded-lg flex items-center justify-center shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
