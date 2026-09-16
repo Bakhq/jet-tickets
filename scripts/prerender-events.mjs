@@ -20,7 +20,6 @@
 // Pages" workflow also runs on a schedule (see .github/workflows/deploy.yml)
 // to periodically regenerate these pages, not just on code pushes.
 
-import { createClient } from '@supabase/supabase-js'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
@@ -29,6 +28,28 @@ const DIST_DIR = path.resolve('dist')
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL
 const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY
+
+// A plain REST call instead of @supabase/supabase-js: that client eagerly
+// constructs a Realtime/WebSocket client on `createClient()` — which this
+// script never needs — and throws under the Node 20 this workflow runs on
+// (no native WebSocket global before Node 22). A raw fetch against
+// PostgREST sidesteps that entirely for what is just one read-only query.
+async function fetchActiveEvents() {
+  const params = new URLSearchParams({
+    select: 'slug,title,description,cover_image_url,event_date,venue,city',
+    status: 'eq.active',
+  })
+  const res = await fetch(`${supabaseUrl}/rest/v1/events?${params}`, {
+    headers: {
+      apikey: supabaseKey,
+      Authorization: `Bearer ${supabaseKey}`,
+    },
+  })
+  if (!res.ok) {
+    throw new Error(`${res.status} ${res.statusText}: ${await res.text()}`)
+  }
+  return res.json()
+}
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -64,16 +85,13 @@ async function main() {
     return
   }
 
-  const supabase = createClient(supabaseUrl, supabaseKey)
-  const { data: events, error } = await supabase
-    .from('events')
-    .select('slug, title, description, cover_image_url, event_date, venue, city')
-    .eq('status', 'active')
-
-  if (error) {
+  let events
+  try {
+    events = await fetchActiveEvents()
+  } catch (err) {
     // Never fail the whole site build/deploy over this — worst case, event
     // links keep showing the generic site-wide preview until the next run.
-    console.error('[prerender-events] Failed to fetch events:', error.message)
+    console.error('[prerender-events] Failed to fetch events:', err.message)
     return
   }
 
