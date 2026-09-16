@@ -84,6 +84,27 @@ export function AuthProvider({ children }) {
     if (error) throw error
   }
 
+  // Sends a "reset your password" email. The link inside brings the visitor
+  // back to redirectTo with a temporary recovery session already established
+  // (same detectSessionInUrl mechanism as Google sign-in above) — the
+  // /auth/reset page then calls updatePassword() below to finish the job.
+  // redirectTo must be listed under Redirect URLs in the Supabase Auth
+  // settings or Supabase will reject it.
+  const sendPasswordReset = async (email) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/reset`,
+    })
+    if (error) throw error
+  }
+
+  // Sets a new password for whoever is in the current session. Only safe to
+  // call once a recovery session is active (see /auth/reset), since it acts
+  // on "the current user", not a specific email/token pair.
+  const updatePassword = async (password) => {
+    const { error } = await supabase.auth.updateUser({ password })
+    if (error) throw error
+  }
+
   const value = {
     session,
     user: session?.user || null,
@@ -94,6 +115,8 @@ export function AuthProvider({ children }) {
     signIn,
     signInWithGoogle,
     signOut,
+    sendPasswordReset,
+    updatePassword,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
