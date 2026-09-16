@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jetūna — билеты на мероприятия</title>
+    <script type="text/javascript">
+      // Single Page Apps for GitHub Pages
+      // https://github.com/rafgraph/spa-github-pages
+      //
+      // GitHub Pages has no server-side rewrite rule, so it serves this
+      // 404.html for any URL that isn't a real static file — which, with
+      // BrowserRouter, is every in-app route except "/" (e.g. /about,
+      // /events/123). This script turns the path into a query string and
+      // redirects to "/", where index.html's own decoder script (see
+      // index.html) restores the original URL via history.replaceState
+      // before React Router reads it, so the app boots on the right page.
+      //
+      // pathSegmentsToKeep is 0 because jetona.ru serves this app from the
+      // domain root rather than a GitHub Pages project subpath.
+      var pathSegmentsToKeep = 0;
+
+      var l = window.location;
+      l.replace(
+        l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+        l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/?/' +
+        l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/').replace(/&/g, '~and~') +
+        (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+        l.hash
+      );
+    </script>
+  </head>
+  <body></body>
+</html>
