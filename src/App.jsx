@@ -10,6 +10,14 @@ import Organizer from './pages/Organizer.jsx'
 import EventCreate from './pages/EventCreate.jsx'
 import Scan from './pages/Scan.jsx'
 import Auth from './pages/Auth.jsx'
+import About from './pages/About.jsx'
+import Careers from './pages/Careers.jsx'
+import Contacts from './pages/Contacts.jsx'
+import Pricing from './pages/Pricing.jsx'
+import Refund from './pages/Refund.jsx'
+import Terms from './pages/Terms.jsx'
+import Privacy from './pages/Privacy.jsx'
+import NotFound from './pages/NotFound.jsx'
 import { useAuth } from './context/AuthContext.jsx'
 
 function ScrollToTop() {
@@ -100,7 +108,14 @@ export default function App() {
           }
         />
         <Route path="/auth" element={<Auth />} />
-        <Route path="*" element={<Home />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/careers" element={<Careers />} />
+        <Route path="/contacts" element={<Contacts />} />
+        <Route path="/pricing" element={<Pricing />} />
+        <Route path="/refund" element={<Refund />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </>
   )
