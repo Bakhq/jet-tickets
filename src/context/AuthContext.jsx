@@ -71,6 +71,19 @@ export function AuthProvider({ children }) {
     await supabase.auth.signOut()
   }
 
+  // Redirects the whole page to Google's consent screen; control never
+  // returns to the caller on success — Supabase brings the visitor back to
+  // redirectTo with the session already established, and onAuthStateChange
+  // above picks it up from there. redirectTo must be listed under Redirect
+  // URLs in the Supabase Auth settings or Supabase will reject it.
+  const signInWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/account` },
+    })
+    if (error) throw error
+  }
+
   const value = {
     session,
     user: session?.user || null,
@@ -79,6 +92,7 @@ export function AuthProvider({ children }) {
     isOrganizer: profile?.role === 'organizer',
     signUp,
     signIn,
+    signInWithGoogle,
     signOut,
   }
 
