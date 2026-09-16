@@ -1,6 +1,10 @@
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 
+// `to: null` marks a nav item with no real page behind it yet — clicking it
+// shows the toast below instead of silently landing on the dashboard again
+// (which is confusing) or 404ing.
 const NAV_ITEMS = [
   {
     key: 'dashboard',
@@ -17,7 +21,10 @@ const NAV_ITEMS = [
   {
     key: 'events',
     label: 'Мои события',
-    to: '/organizer/events/new',
+    // This used to point straight at the "create new event" form, so the
+    // one nav item labelled "my events" never actually showed your events —
+    // the dashboard below is where the real list lives.
+    to: '/organizer',
     icon: (c) => (
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
         <rect x="4" y="5" width="16" height="14" rx="2" stroke={c} strokeWidth="1.6" />
@@ -44,7 +51,7 @@ const NAV_ITEMS = [
   {
     key: 'payouts',
     label: 'Продажи и выплаты',
-    to: '/organizer',
+    to: null,
     icon: (c) => (
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
         <path d="M2 8 H22 M2 8 L4 5 H20 L22 8 M2 8 V18 H22 V8" stroke={c} strokeWidth="1.6" strokeLinejoin="round" />
@@ -54,7 +61,7 @@ const NAV_ITEMS = [
   {
     key: 'settings',
     label: 'Настройки',
-    to: '/organizer',
+    to: null,
     icon: (c) => (
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
         <circle cx="12" cy="12" r="3" stroke={c} strokeWidth="1.6" />
@@ -72,6 +79,13 @@ const NAV_ITEMS = [
 export default function OrganizerShell({ active, children }) {
   const { profile, session, signOut } = useAuth()
   const navigate = useNavigate()
+  const [toast, setToast] = useState(null)
+
+  useEffect(() => {
+    if (!toast) return
+    const t = setTimeout(() => setToast(null), 2400)
+    return () => clearTimeout(t)
+  }, [toast])
 
   const name = profile?.full_name || session?.user?.email || 'Организатор'
   const company = profile?.company_name || session?.user?.email || ''
@@ -108,14 +122,8 @@ export default function OrganizerShell({ active, children }) {
         <nav className="flex lg:flex-col gap-2 lg:gap-0.5 mt-4 lg:mt-0 overflow-x-auto no-scrollbar">
           {NAV_ITEMS.map((item) => {
             const isActive = item.key === active
-            return (
-              <Link
-                key={item.key}
-                to={item.to}
-                className={`shrink-0 flex items-center gap-2.5 lg:gap-3 rounded-[10px] px-3 lg:px-3 py-2 lg:py-3 whitespace-nowrap transition-colors ${
-                  isActive ? 'bg-teal/[0.14]' : 'hover:bg-white/[0.06]'
-                }`}
-              >
+            const content = (
+              <>
                 {item.icon(isActive ? '#14CFBE' : '#B7B2A5')}
                 <span
                   className={`text-[12.5px] lg:text-sm font-semibold ${
@@ -124,6 +132,27 @@ export default function OrganizerShell({ active, children }) {
                 >
                   {item.label}
                 </span>
+              </>
+            )
+            const className = `shrink-0 flex items-center gap-2.5 lg:gap-3 rounded-[10px] px-3 lg:px-3 py-2 lg:py-3 whitespace-nowrap transition-colors ${
+              isActive ? 'bg-teal/[0.14]' : 'hover:bg-white/[0.06]'
+            }`
+
+            if (!item.to) {
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setToast(`«${item.label}» скоро появится`)}
+                  className={className}
+                >
+                  {content}
+                </button>
+              )
+            }
+            return (
+              <Link key={item.key} to={item.to} className={className}>
+                {content}
               </Link>
             )
           })}
@@ -154,6 +183,12 @@ export default function OrganizerShell({ active, children }) {
 
       {/* MAIN */}
       <div className="flex-1 min-w-0 px-5 sm:px-8 lg:px-10 py-6 sm:py-8 lg:py-9 lg:pb-[60px]">{children}</div>
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-ink text-cream text-[13px] font-medium px-4 py-2.5 rounded-[10px] shadow-[0_12px_28px_rgba(11,10,13,0.28)] z-50">
+          {toast}
+        </div>
+      )}
     </div>
   )
 }
