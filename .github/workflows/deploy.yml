@@ -1,7 +1,8 @@
 name: Deploy to GitHub Pages
 
 on:
-  push:
+  push:schedule:
+  - cron: '*/30 * * * *'
     branches: [main]
   workflow_dispatch:
 
