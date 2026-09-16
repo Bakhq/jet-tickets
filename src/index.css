@@ -40,9 +40,15 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+/* Wrapped in @layer base so Tailwind utility classes (e.g. text-muted-light
+   on a <Link>) can still override this default — an unlayered rule here
+   would otherwise beat every utility class regardless of specificity,
+   which was silently forcing all <a> text to inherit(black). */
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 }
 
 ::-webkit-scrollbar {
