@@ -13,7 +13,7 @@ export default function Auth() {
   const [submitting, setSubmitting] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
-  const { signIn, signUp } = useAuth()
+  const { signIn, signUp, signInWithGoogle } = useAuth()
 
   const redirectTo = location.state?.from?.pathname || '/account'
 
@@ -32,6 +32,24 @@ export default function Auth() {
       setError(err.message === 'Invalid login credentials' ? 'Неверный email или пароль.' : err.message)
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  // Google is wired to real Supabase OAuth; Яндекс ID/VK ID aren't
+  // registered as providers yet (Supabase has no built-in provider for
+  // either — they'd need a custom OAuth2 provider setup), so they still
+  // just show the placeholder message.
+  const handleSocialClick = async (s) => {
+    setError('')
+    if (s !== 'Google') {
+      setInfo(`Вход через ${s} скоро будет доступен.`)
+      return
+    }
+    setInfo('')
+    try {
+      await signInWithGoogle()
+    } catch (err) {
+      setError(err.message)
     }
   }
 
@@ -163,11 +181,8 @@ export default function Auth() {
                   <button
                     key={s}
                     type="button"
-                    title="Пока недоступно в демо-версии"
-                    onClick={() => {
-                      setError('')
-                      setInfo(`Вход через ${s} скоро будет доступен.`)
-                    }}
+                    title={s === 'Google' ? 'Войти через Google' : 'Пока недоступно в демо-версии'}
+                    onClick={() => handleSocialClick(s)}
                     className="flex-1 text-center border border-border-2 rounded-[10px] py-2.5 sm:py-[11px] text-[13px] font-semibold text-[#4A473F] hover:border-muted-light transition-colors"
                   >
                     {s}
