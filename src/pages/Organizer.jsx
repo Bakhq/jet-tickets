@@ -4,10 +4,6 @@ import OrganizerShell from '../components/OrganizerShell.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { listOrganizerEvents } from '../lib/api.js'
 
-// Illustrative only — there's no weekly-sales table backing this chart yet;
-// it's cosmetic dashboard chrome, same as in the original mock build.
-const WEEKLY_CHART = [52, 68, 44, 80, 61, 90, 100, 73]
-
 const STATUS_STYLE = {
   active: { label: 'Активно', text: 'text-teal-deep', bg: 'bg-teal/[0.12]' },
   low: { label: 'Мало мест', text: 'text-amber-text', bg: 'bg-amber-bg' },
@@ -61,62 +57,25 @@ export default function Organizer() {
         <div className="text-sm text-muted py-8 text-center">Загружаем данные…</div>
       ) : (
         <>
-          {/* STAT CARDS */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5 mb-6 sm:mb-7">
+          {/* STAT CARDS — real numbers only. There used to be a "growth vs
+              last period" percentage and a "view conversion" figure here;
+              both were fixed placeholder numbers with no data behind them
+              (no page-view tracking exists yet), so they're gone rather than
+              left showing a fake trend. */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-5 mb-6 sm:mb-7">
             <div className="bg-white border border-border rounded-[13px] sm:rounded-2xl p-3.5 sm:p-5">
               <div className="text-[11.5px] sm:text-[13px] text-muted mb-2 sm:mb-2.5">Билетов продано</div>
-              <div className="flex items-baseline gap-1.5 sm:gap-2">
-                <div className="text-xl sm:text-2xl font-bold text-ink-2">{totalSold.toLocaleString('ru-RU')}</div>
-                <div className="text-[11px] sm:text-xs font-semibold text-teal-deep">+12%</div>
-              </div>
+              <div className="text-xl sm:text-2xl font-bold text-ink-2">{totalSold.toLocaleString('ru-RU')}</div>
             </div>
             <div className="bg-white border border-border rounded-[13px] sm:rounded-2xl p-3.5 sm:p-5">
               <div className="text-[11.5px] sm:text-[13px] text-muted mb-2 sm:mb-2.5">Выручка</div>
-              <div className="flex items-baseline gap-1.5 sm:gap-2">
-                <div className="text-xl sm:text-2xl font-bold text-ink-2">
-                  {(totalRevenue / 1_000_000).toLocaleString('ru-RU', { maximumFractionDigits: 2 })}М ₽
-                </div>
-                <div className="text-[11px] sm:text-xs font-semibold text-teal-deep">+8%</div>
+              <div className="text-xl sm:text-2xl font-bold text-ink-2">
+                {totalRevenue.toLocaleString('ru-RU')} ₽
               </div>
             </div>
             <div className="bg-white border border-border rounded-[13px] sm:rounded-2xl p-3.5 sm:p-5">
               <div className="text-[11.5px] sm:text-[13px] text-muted mb-2 sm:mb-2.5">Активных событий</div>
               <div className="text-xl sm:text-2xl font-bold text-ink-2">{activeCount}</div>
-            </div>
-            <div className="bg-white border border-border rounded-[13px] sm:rounded-2xl p-3.5 sm:p-5">
-              <div className="text-[11.5px] sm:text-[13px] text-muted mb-2 sm:mb-2.5">Конверсия просмотров</div>
-              <div className="flex items-baseline gap-1.5 sm:gap-2">
-                <div className="text-xl sm:text-2xl font-bold text-ink-2">6,4%</div>
-                <div className="text-[11px] sm:text-xs font-semibold text-danger">−0,3%</div>
-              </div>
-            </div>
-          </div>
-
-          {/* CHART */}
-          <div className="bg-white border border-border rounded-2xl p-4 sm:p-6 mb-6 sm:mb-7">
-            <div className="text-sm sm:text-[15px] font-semibold text-ink-2 mb-4 sm:mb-5">
-              Продажи билетов за 4 недели
-            </div>
-            <div className="flex items-end gap-2 sm:gap-3.5 h-[100px] sm:h-[140px] px-0.5">
-              {WEEKLY_CHART.map((h, i) => (
-                <div
-                  key={i}
-                  className={`flex-1 rounded-t ${i === 6 ? 'bg-teal' : 'bg-teal-wash'}`}
-                  style={{ height: `${h}%` }}
-                />
-              ))}
-            </div>
-            <div className="flex gap-2 sm:gap-3.5 px-0.5 mt-2">
-              {['Нед 1', 'Пт', 'Нед 2', 'Пт', 'Нед 3', 'Пт', 'Нед 4', 'Пт'].map((label, i) => (
-                <div
-                  key={i}
-                  className={`flex-1 text-center text-[9.5px] sm:text-[11px] ${
-                    i === 6 ? 'text-ink-2 font-semibold' : 'text-muted'
-                  }`}
-                >
-                  {label}
-                </div>
-              ))}
             </div>
           </div>
 
@@ -160,7 +119,7 @@ export default function Organizer() {
                     </div>
                     <div>
                       <Link
-                        to={ev.status === 'draft' ? '/organizer/events/new' : '/organizer'}
+                        to={`/organizer/events/${ev.eventId}/edit`}
                         className="text-[13px] font-semibold text-teal-deep"
                       >
                         {ev.status === 'draft' ? 'Продолжить' : 'Управлять'}
@@ -187,7 +146,7 @@ export default function Organizer() {
                           {ev.revenue != null ? `${ev.revenue.toLocaleString('ru-RU')} ₽` : '—'}
                         </span>
                         <Link
-                          to={ev.status === 'draft' ? '/organizer/events/new' : '/organizer'}
+                          to={`/organizer/events/${ev.eventId}/edit`}
                           className="text-[12.5px] font-semibold text-teal-deep"
                         >
                           {ev.status === 'draft' ? 'Продолжить →' : 'Управлять →'}
