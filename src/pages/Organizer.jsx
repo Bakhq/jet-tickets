@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import OrganizerShell from '../components/OrganizerShell.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
-import { listOrganizerEvents } from '../lib/api.js'
+import { listOrganizerEvents, listRefundRequests, respondToRefund } from '../lib/api.js'
 
 const STATUS_STYLE = {
   active: { label: 'Активно', text: 'text-teal-deep', bg: 'bg-teal/[0.12]' },
@@ -19,10 +19,74 @@ function StatusBadge({ status }) {
   )
 }
 
+// One pending refund request, with the buyer's own words (if any) and an
+// approve/reject pair that calls the respond_to_refund RPC. Approving is the
+// organizer's confirmation that money has actually been returned to the
+// buyer by hand — payments are still processed by MockPaymentProvider, which
+// has no automatic refund() yet, so nothing here moves money on its own.
+function RefundRequestRow({ request, onResolved }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleRespond = async (approve) => {
+    setBusy(true)
+    setError('')
+    try {
+      const result = await respondToRefund(request.id, approve)
+      if (result?.status !== 'ok') {
+        setError('Не удалось обработать запрос. Обновите страницу и попробуйте ещё раз.')
+        return
+      }
+      onResolved()
+    } catch (err) {
+      setError(err.message || 'Не удалось обработать запрос.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="px-5 sm:px-6 py-4 border-b border-[#F0EEE6] last:border-0">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-semibold text-ink-2">{request.eventTitle}</div>
+          <div className="text-[13px] text-muted-2 mt-0.5">
+            {request.buyerName} · {request.tier} × {request.qty} · Заказ №{request.orderNumber} ·{' '}
+            {request.total?.toLocaleString('ru-RU')} ₽
+          </div>
+          {request.reason && (
+            <div className="text-[13px] text-muted mt-1.5 italic">«{request.reason}»</div>
+          )}
+        </div>
+        <div className="flex gap-2.5 shrink-0">
+          <button
+            type="button"
+            onClick={() => handleRespond(false)}
+            disabled={busy}
+            className="border border-border-2 rounded-[9px] px-3.5 py-2.5 text-[12.5px] sm:text-[13px] font-semibold text-ink-2 hover:bg-[#F0EEE6] transition-colors disabled:opacity-60"
+          >
+            Отклонить
+          </button>
+          <button
+            type="button"
+            onClick={() => handleRespond(true)}
+            disabled={busy}
+            className="bg-ink text-cream rounded-[9px] px-3.5 py-2.5 text-[12.5px] sm:text-[13px] font-semibold hover:opacity-85 transition-opacity disabled:opacity-60"
+          >
+            {busy ? 'Обрабатываем…' : 'Подтвердить возврат'}
+          </button>
+        </div>
+      </div>
+      {error && <div className="text-[13px] font-semibold text-danger mt-2.5">{error}</div>}
+    </div>
+  )
+}
+
 export default function Organizer() {
   const { user } = useAuth()
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
+  const [refundRequests, setRefundRequests] = useState([])
 
   useEffect(() => {
     if (!user) return
@@ -34,6 +98,18 @@ export default function Organizer() {
     return () => {
       active = false
     }
+  }, [user])
+
+  const loadRefundRequests = () => {
+    if (!user) return
+    listRefundRequests(user.id)
+      .then((data) => setRefundRequests(data))
+      .catch(() => setRefundRequests([]))
+  }
+
+  useEffect(() => {
+    loadRefundRequests()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
   const soldEvents = events.filter((e) => e.status !== 'draft')
@@ -52,6 +128,20 @@ export default function Organizer() {
           + Создать событие
         </Link>
       </div>
+
+      {refundRequests.length > 0 && (
+        <div className="bg-white border border-amber-text/30 rounded-2xl overflow-hidden mb-6 sm:mb-7">
+          <div className="px-5 sm:px-6 py-4 border-b border-border flex items-center gap-2.5">
+            <span className="text-[15px] font-semibold text-ink-2">Запросы на возврат</span>
+            <span className="text-[11px] font-semibold text-amber-text bg-amber-bg px-[9px] py-1 rounded-md">
+              {refundRequests.length}
+            </span>
+          </div>
+          {refundRequests.map((r) => (
+            <RefundRequestRow key={r.id} request={r} onResolved={loadRefundRequests} />
+          ))}
+        </div>
+      )}
 
       {loading ? (
         <div className="text-sm text-muted py-8 text-center">Загружаем данные…</div>
