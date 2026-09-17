@@ -4,7 +4,7 @@ import Header from '../components/Header.jsx'
 import { Footer } from '../components/Footer.jsx'
 import JetMark from '../components/JetMark.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
-import { listUserTickets, updateProfile } from '../lib/api.js'
+import { listUserTickets, updateProfile, requestRefund } from '../lib/api.js'
 import { downloadTicketPdf } from '../lib/ticketPdf.js'
 
 const SIDE_ITEMS = [
@@ -40,8 +40,85 @@ const SIDE_ITEMS = [
   },
 ]
 
-function TicketCard({ ticket }) {
+// Ticket statuses that get their own badge color instead of the default teal
+// "Оплачено" look — a refund request or a completed refund should read as
+// distinct from a normal active ticket at a glance.
+const STATUS_BADGE_STYLE = {
+  'Возврат запрошен': 'text-amber-text bg-amber-bg',
+  'Возврат оформлен': 'text-muted-2 bg-[#EDEBE4]',
+}
+
+function RefundModal({ ticket, onClose, onSubmitted }) {
+  const [reason, setReason] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleConfirm = async () => {
+    setSubmitting(true)
+    setError('')
+    try {
+      const result = await requestRefund(ticket.id, reason.trim() || null)
+      if (result?.status !== 'ok') {
+        setError('Не удалось оформить запрос. Обновите страницу и попробуйте ещё раз.')
+        return
+      }
+      onSubmitted()
+    } catch (err) {
+      setError(err.message || 'Не удалось оформить запрос на возврат.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-ink/60 flex items-center justify-center z-50 px-5" onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl p-6 max-w-[420px] w-full"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="text-base font-semibold text-ink-2 mb-1.5">Запросить возврат</div>
+        <div className="text-[13px] text-muted mb-4 leading-relaxed">
+          {ticket.eventTitle} · Заказ №{ticket.orderNumber}. Оплата пока принимается в тестовом режиме,
+          поэтому организатор рассматривает запрос и подтверждает возврат вручную — деньги не спишутся
+          и не вернутся автоматически в этот момент.
+        </div>
+        <label className="block mb-4">
+          <span className="block text-[12.5px] font-semibold text-[#4A473F] mb-2">Причина (необязательно)</span>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            rows={3}
+            placeholder="Например: не смогу пойти на мероприятие"
+            className="w-full border border-border-2 rounded-[10px] px-4 py-3 text-sm text-ink-2 outline-none focus:border-teal resize-none"
+          />
+        </label>
+        {error && <div className="text-[13px] font-semibold text-danger mb-3.5">{error}</div>}
+        <div className="flex gap-2.5">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={submitting}
+            className="flex-1 border border-border-2 rounded-[10px] py-2.5 text-sm font-semibold text-ink-2 hover:bg-[#F0EEE6] transition-colors disabled:opacity-60"
+          >
+            Отмена
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirm}
+            disabled={submitting}
+            className="flex-1 bg-ink text-cream rounded-[10px] py-2.5 text-sm font-semibold hover:opacity-85 transition-opacity disabled:opacity-60"
+          >
+            {submitting ? 'Отправляем…' : 'Отправить запрос'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function TicketCard({ ticket, onRefundRequested }) {
   const [showQR, setShowQR] = useState(false)
+  const [showRefund, setShowRefund] = useState(false)
   const [downloading, setDownloading] = useState(false)
 
   const handleDownload = async () => {
@@ -72,6 +149,7 @@ function TicketCard({ ticket }) {
   // there's no id (e.g. a ticket shaped before this field existed).
   const qrData = encodeURIComponent(ticket.id || `Jetūna · ${ticket.eventTitle} · Заказ №${ticket.orderNumber}`)
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${qrData}`
+  const badgeClass = STATUS_BADGE_STYLE[ticket.status] || 'text-teal-deep bg-teal/[0.12]'
 
   return (
     <>
@@ -103,10 +181,19 @@ function TicketCard({ ticket }) {
           </div>
         </div>
         <div className="flex items-center justify-between sm:contents">
-          <span className="inline-block text-[11px] font-semibold tracking-wide uppercase text-teal-deep bg-teal/[0.12] px-[11px] py-[5px] rounded-md shrink-0">
+          <span className={`inline-block text-[11px] font-semibold tracking-wide uppercase px-[11px] py-[5px] rounded-md shrink-0 ${badgeClass}`}>
             {ticket.status}
           </span>
           <div className="flex gap-2.5 shrink-0">
+            {ticket.canRequestRefund && (
+              <button
+                type="button"
+                onClick={() => setShowRefund(true)}
+                className="border border-border-2 rounded-[9px] px-3.5 sm:px-4 py-2.5 text-[12.5px] sm:text-[13px] font-semibold text-danger hover:bg-danger/10 transition-colors"
+              >
+                Запросить возврат
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setShowQR(true)}
@@ -153,6 +240,17 @@ function TicketCard({ ticket }) {
             </button>
           </div>
         </div>
+      )}
+
+      {showRefund && (
+        <RefundModal
+          ticket={ticket}
+          onClose={() => setShowRefund(false)}
+          onSubmitted={() => {
+            setShowRefund(false)
+            onRefundRequested()
+          }}
+        />
       )}
     </>
   )
@@ -273,9 +371,17 @@ export default function Account() {
   const { user, profile, signOut } = useAuth()
   const navigate = useNavigate()
 
+  const loadTickets = () => {
+    if (!user) return
+    return listUserTickets(user.id)
+      .then((data) => setTickets(data))
+      .catch(() => setTickets({ upcoming: [], past: [] }))
+  }
+
   useEffect(() => {
     if (!user) return
     let active = true
+    setLoading(true)
     listUserTickets(user.id)
       .then((data) => active && setTickets(data))
       .catch(() => active && setTickets({ upcoming: [], past: [] }))
@@ -375,7 +481,7 @@ export default function Account() {
               ) : (
                 <div className="flex flex-col gap-3.5 sm:gap-4">
                   {list.map((ticket) => (
-                    <TicketCard key={ticket.orderNumber} ticket={ticket} />
+                    <TicketCard key={ticket.orderNumber} ticket={ticket} onRefundRequested={loadTickets} />
                   ))}
                 </div>
               )}
