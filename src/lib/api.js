@@ -186,6 +186,69 @@ export async function checkInTicket(orderId) {
   return data
 }
 
+// Buyer-initiated refund request for their own paid order. The RPC checks
+// ownership (orders.user_id = auth.uid()) and that the order is currently
+// 'paid' before flipping it to 'refund_requested' — see
+// request_refund() in the Supabase project. No money actually moves here:
+// payments are still processed by MockPaymentProvider (src/lib/payments.js),
+// which has no refund() method yet, so the organizer reconciles the actual
+// refund manually and then approves the request (see respondToRefund below).
+// Returns one of: ok | not_paid | not_found | forbidden.
+export async function requestRefund(orderId, reason) {
+  const { data, error } = await supabase.rpc('request_refund', {
+    p_order_id: orderId,
+    p_reason: reason || null,
+  })
+  if (error) throw error
+  return data
+}
+
+// Organizer-side approval/rejection of a pending refund request, called from
+// the "Запросы на возврат" section of Organizer.jsx. The RPC checks that the
+// caller organizes the order's event before doing anything. Approving marks
+// the order 'refunded' and frees the seat back up (decrements
+// ticket_tiers.sold); rejecting reverts the order back to 'paid'. Returns
+// one of: ok (with result: 'refunded' | 'rejected') | not_requested |
+// not_found | forbidden.
+export async function respondToRefund(orderId, approve) {
+  const { data, error } = await supabase.rpc('respond_to_refund', {
+    p_order_id: orderId,
+    p_approve: approve,
+  })
+  if (error) throw error
+  return data
+}
+
+// Pending refund requests across all of an organizer's events, for the
+// "Запросы на возврат" section of the dashboard.
+export async function listRefundRequests(organizerId) {
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*, events!inner(title, organizer_id), order_items(*)')
+    .eq('events.organizer_id', organizerId)
+    .eq('status', 'refund_requested')
+    .order('refund_requested_at', { ascending: true })
+  if (error) throw error
+
+  return (data || []).map((o) => {
+    const qty = (o.order_items || []).reduce((sum, i) => sum + i.qty, 0)
+    const tierLabel = (o.order_items || []).map((i) => i.tier_name).join(', ') || '—'
+    return {
+      id: o.id,
+      orderNumber: o.order_number,
+      eventTitle: o.events?.title || 'Событие',
+      buyerName: o.buyer_name,
+      buyerEmail: o.buyer_email,
+      buyerPhone: o.buyer_phone,
+      tier: tierLabel,
+      qty,
+      total: o.total,
+      reason: o.refund_reason,
+      requestedAt: o.refund_requested_at,
+    }
+  })
+}
+
 // ---------------------------------------------------------------- account / tickets ----------------------------------------------------------------
 
 export async function getProfile(userId) {
@@ -206,7 +269,15 @@ export async function updateProfile(userId, patch) {
   return data
 }
 
-// Splits a buyer's paid orders into upcoming vs past based on the event date.
+// Splits a buyer's paid/refund-requested/refunded orders into upcoming vs
+// past based on the event date. `rawStatus` (the actual orders.status value)
+// rides alongside the display `status` string so Account.jsx can decide
+// whether to show the "Запросить возврат" button without a second query.
+const TICKET_STATUS_LABEL = {
+  refund_requested: 'Возврат запрошен',
+  refunded: 'Возврат оформлен',
+}
+
 export async function listUserTickets(userId) {
   const { data, error } = await supabase
     .from('orders')
@@ -214,7 +285,7 @@ export async function listUserTickets(userId) {
       '*, events(title, event_date, event_time, venue, city, gradient_from, gradient_to, cover_image_url), order_items(*)'
     )
     .eq('user_id', userId)
-    .eq('status', 'paid')
+    .in('status', ['paid', 'refund_requested', 'refunded'])
     .order('created_at', { ascending: false })
   if (error) throw error
 
@@ -235,7 +306,9 @@ export async function listUserTickets(userId) {
       venue: ev ? `${ev.venue}, ${ev.city}` : '',
       tier: tierLabel,
       qty,
-      status: isUpcoming ? 'Оплачено' : 'Завершено',
+      status: TICKET_STATUS_LABEL[o.status] || (isUpcoming ? 'Оплачено' : 'Завершено'),
+      rawStatus: o.status,
+      canRequestRefund: o.status === 'paid' && isUpcoming,
       gradient: ev ? [ev.gradient_from, ev.gradient_to] : DEFAULT_GRADIENT,
       coverImageUrl: ev?.cover_image_url || null,
       buyerName: o.buyer_name || null,
