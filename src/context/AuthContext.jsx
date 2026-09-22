@@ -111,6 +111,11 @@ export function AuthProvider({ children }) {
     profile,
     loading,
     isOrganizer: profile?.role === 'organizer',
+    // profiles.is_admin gates the /admin manual-payment-confirmation page —
+    // separate from the organizer role, since it's the site admin (Bakh)
+    // confirming SBP/bank-transfer payments across every organizer's events,
+    // not an organizer managing their own (see RequireAdmin in App.jsx).
+    isAdmin: !!profile?.is_admin,
     signUp,
     signIn,
     signInWithGoogle,
