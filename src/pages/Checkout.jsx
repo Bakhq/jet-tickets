@@ -109,6 +109,28 @@ export default function Checkout() {
         userId: user?.id,
       })
 
+      // SBP is a manual QR/bank-transfer payment for now (see the "manual
+      // (QR/bank-transfer) payments" section of src/lib/api.js) — the order
+      // stays 'pending' until the site admin confirms the transfer arrived,
+      // instead of being marked paid right away like the mock card flow.
+      if (payMethod === 'sbp') {
+        navigate('/checkout/confirmation', {
+          state: {
+            eventId,
+            selections,
+            subtotal: sub,
+            fee: f,
+            total: t,
+            orderId,
+            orderNumber,
+            buyerEmail: email,
+            buyerName: buyer.name,
+            pending: true,
+          },
+        })
+        return
+      }
+
       const payment = await paymentProvider.charge({ amount: t, method: payMethod, orderNumber })
       await markOrderPaid(orderId, payment.reference)
 
@@ -273,7 +295,9 @@ export default function Checkout() {
           )}
 
           <div className="text-[11.5px] text-muted-light mt-4">
-            Тестовый режим: оплата имитируется, реальные средства не списываются.
+            {payMethod === 'sbp'
+              ? 'После оформления заказа вы увидите QR-код и реквизиты для перевода — оплата подтверждается вручную, обычно в течение дня.'
+              : 'Тестовый режим: оплата имитируется, реальные средства не списываются.'}
           </div>
         </div>
 
@@ -331,7 +355,13 @@ export default function Checkout() {
             disabled={submitting}
             className="block w-full text-center bg-teal text-ink font-semibold text-[15px] py-[15px] rounded-[10px] mb-4 hover:opacity-85 transition-opacity disabled:opacity-60"
           >
-            {submitting ? 'Обрабатываем оплату…' : `Оплатить ${total.toLocaleString('ru-RU')} ₽`}
+            {submitting
+              ? payMethod === 'sbp'
+                ? 'Оформляем заказ…'
+                : 'Обрабатываем оплату…'
+              : payMethod === 'sbp'
+                ? `Оформить заказ на ${total.toLocaleString('ru-RU')} ₽`
+                : `Оплатить ${total.toLocaleString('ru-RU')} ₽`}
           </button>
 
           <div className="flex items-center justify-center gap-2 mb-3">
