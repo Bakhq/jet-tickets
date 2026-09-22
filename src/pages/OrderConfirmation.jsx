@@ -30,6 +30,121 @@ export default function OrderConfirmation() {
   if (!state || !event) return null
 
   const { selections, total, orderId, orderNumber, buyerEmail, buyerName } = state
+
+  // SBP checkout (see Checkout.jsx) sends buyers here with pending: true instead
+  // of a paid order — there's no door-entry ticket to show yet, just the
+  // site's payment QR and a reminder to put the order number in the transfer
+  // comment. The order stays 'pending' until the site admin confirms the
+  // transfer arrived (see confirmManualPayment in src/lib/api.js), at which
+  // point it behaves like any other paid ticket in the account page.
+  if (state.pending) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <SimpleHeader center />
+
+        <div className="pt-6 sm:pt-8 flex items-center justify-center gap-3 sm:gap-4">
+          {['Билеты', 'Данные и оплата', 'Готово'].map((label, i) => (
+            <div key={label} className="flex items-center gap-3 sm:gap-4">
+              {i > 0 && <div className="w-7 sm:w-12 h-px bg-teal" />}
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 sm:w-[26px] sm:h-[26px] rounded-full text-xs sm:text-[13px] font-bold flex items-center justify-center bg-teal text-ink">
+                  ✓
+                </div>
+                <span
+                  className={`text-xs sm:text-sm hidden sm:inline ${
+                    i === 2 ? 'font-bold text-ink-2' : 'font-semibold text-muted'
+                  }`}
+                >
+                  {label}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex flex-col items-center px-6 pt-8 sm:pt-14 pb-6 sm:pb-10 text-center">
+          <div className="w-[60px] h-[60px] sm:w-[72px] sm:h-[72px] rounded-full bg-teal/[0.14] flex items-center justify-center mb-5 sm:mb-6">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none">
+              <rect x="5" y="10" width="14" height="10" rx="2" stroke="#0E9E92" strokeWidth="1.8" />
+              <path d="M8 10 V7 a4 4 0 0 1 8 0 v3" stroke="#0E9E92" strokeWidth="1.8" />
+            </svg>
+          </div>
+          <div className="text-[22px] sm:text-[26px] font-bold text-ink-2 mb-2">Заказ оформлен — ждём оплату</div>
+          <div className="text-sm text-muted mb-1">Переведите по QR-коду ниже, чтобы получить билет</div>
+          <div className="text-[12.5px] sm:text-[13px] text-muted-light">Номер заказа: {orderNumber}</div>
+        </div>
+
+        <div className="flex justify-center px-5 pb-8 sm:pb-14">
+          <div className="w-full max-w-[560px] bg-white border border-border rounded-2xl p-5 sm:p-7">
+            <div className="flex gap-3.5 sm:gap-4 pb-4 sm:pb-5 border-b border-border mb-4 sm:mb-5">
+              <div
+                className="w-[52px] h-[52px] sm:w-16 sm:h-16 rounded-[11px] sm:rounded-xl shrink-0 flex items-center justify-center"
+                style={{ background: `linear-gradient(160deg, ${event.gradient[0]}, ${event.gradient[1]})` }}
+              >
+                <JetMark size={24} />
+              </div>
+              <div>
+                <div className="text-[14.5px] sm:text-base font-bold text-ink-2 mb-1">{event.title}</div>
+                <div className="text-xs sm:text-[13px] text-muted">
+                  {event.date}, {event.time} · {event.venue}
+                </div>
+              </div>
+            </div>
+
+            {selections.map((s) => (
+              <div
+                key={s.tierId}
+                className="flex items-center justify-between text-[13.5px] sm:text-sm text-[#4A473F] mb-2.5 sm:mb-3"
+              >
+                <span>Билет</span>
+                <span className="font-semibold text-ink-2">
+                  {s.tierName} × {s.qty}
+                </span>
+              </div>
+            ))}
+            <div className="flex items-center justify-between text-[13.5px] sm:text-sm text-[#4A473F]">
+              <span>К оплате</span>
+              <span className="font-bold text-ink-2">{total.toLocaleString('ru-RU')} ₽</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-center px-5 pb-8 sm:pb-14 -mt-2 sm:-mt-6">
+          <div className="w-full max-w-[560px] bg-white border border-border rounded-2xl p-5 sm:p-7 text-center">
+            <div className="text-[14.5px] sm:text-base font-bold text-ink-2 mb-1">Оплата по QR-коду</div>
+            <div className="text-xs sm:text-[13px] text-muted mb-4 sm:mb-5">
+              Отсканируйте код в приложении банка и переведите{' '}
+              <span className="font-semibold text-ink-2">{total.toLocaleString('ru-RU')} ₽</span>. В комментарии к
+              переводу обязательно укажите номер заказа{' '}
+              <span className="font-semibold text-ink-2">{orderNumber}</span> — так оплату быстрее найдут и подтвердят.
+            </div>
+            <img
+              src="/qr-payment.jpg"
+              alt="QR-код для оплаты"
+              width={220}
+              className="mx-auto rounded-xl border border-border mb-4 sm:mb-5"
+            />
+            <div className="text-[11.5px] sm:text-xs text-muted-light leading-relaxed">
+              Билет появится в личном кабинете, как только мы подтвердим поступление перевода — обычно в течение дня.
+              Билет и чек также придут на {buyerEmail}.
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-center px-5 pb-8 sm:pb-16 -mt-2 sm:-mt-8">
+          <Link
+            to="/account"
+            className="w-full max-w-[560px] text-center border border-border-2 text-ink-2 font-semibold text-[13.5px] sm:text-sm py-3 sm:py-[13px] rounded-[10px]"
+          >
+            Перейти в личный кабинет
+          </Link>
+        </div>
+
+        <MinimalFooter />
+      </div>
+    )
+  }
+
   // Same api.qrserver.com pattern as the account page's QR modal — the code
   // is the order's own uuid, checked against the database at the door
   // (see Scan.jsx / check_in_ticket RPC), not just a decorative image.
