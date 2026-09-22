@@ -44,6 +44,7 @@ const SIDE_ITEMS = [
 // "Оплачено" look — a refund request or a completed refund should read as
 // distinct from a normal active ticket at a glance.
 const STATUS_BADGE_STYLE = {
+  'Ожидает подтверждения оплаты': 'text-amber-text bg-amber-bg',
   'Возврат запрошен': 'text-amber-text bg-amber-bg',
   'Возврат оформлен': 'text-muted-2 bg-[#EDEBE4]',
 }
@@ -185,30 +186,41 @@ function TicketCard({ ticket, onRefundRequested }) {
             {ticket.status}
           </span>
           <div className="flex gap-2.5 shrink-0">
-            {ticket.canRequestRefund && (
-              <button
-                type="button"
-                onClick={() => setShowRefund(true)}
-                className="border border-border-2 rounded-[9px] px-3.5 sm:px-4 py-2.5 text-[12.5px] sm:text-[13px] font-semibold text-danger hover:bg-danger/10 transition-colors"
-              >
-                Запросить возврат
-              </button>
+            {/* A pending manual-payment order has no ticket yet — the QR and PDF
+                only make sense once the admin confirms the transfer and the
+                order flips to 'paid' (see confirmManualPayment in src/lib/api.js). */}
+            {ticket.rawStatus === 'pending' ? (
+              <span className="text-[12.5px] sm:text-[13px] text-muted-light italic">
+                Билет откроется после подтверждения оплаты
+              </span>
+            ) : (
+              <>
+                {ticket.canRequestRefund && (
+                  <button
+                    type="button"
+                    onClick={() => setShowRefund(true)}
+                    className="border border-border-2 rounded-[9px] px-3.5 sm:px-4 py-2.5 text-[12.5px] sm:text-[13px] font-semibold text-danger hover:bg-danger/10 transition-colors"
+                  >
+                    Запросить возврат
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowQR(true)}
+                  className="border border-border-2 rounded-[9px] px-3.5 sm:px-4 py-2.5 text-[12.5px] sm:text-[13px] font-semibold text-ink-2 hover:bg-[#F0EEE6] transition-colors"
+                >
+                  QR-код
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownload}
+                  disabled={downloading}
+                  className="bg-ink text-cream rounded-[9px] px-3.5 sm:px-4 py-2.5 text-[12.5px] sm:text-[13px] font-semibold hover:opacity-85 transition-opacity disabled:opacity-60"
+                >
+                  {downloading ? 'Формируем…' : 'Скачать PDF'}
+                </button>
+              </>
             )}
-            <button
-              type="button"
-              onClick={() => setShowQR(true)}
-              className="border border-border-2 rounded-[9px] px-3.5 sm:px-4 py-2.5 text-[12.5px] sm:text-[13px] font-semibold text-ink-2 hover:bg-[#F0EEE6] transition-colors"
-            >
-              QR-код
-            </button>
-            <button
-              type="button"
-              onClick={handleDownload}
-              disabled={downloading}
-              className="bg-ink text-cream rounded-[9px] px-3.5 sm:px-4 py-2.5 text-[12.5px] sm:text-[13px] font-semibold hover:opacity-85 transition-opacity disabled:opacity-60"
-            >
-              {downloading ? 'Формируем…' : 'Скачать PDF'}
-            </button>
           </div>
         </div>
       </div>
