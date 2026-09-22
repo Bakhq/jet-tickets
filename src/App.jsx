@@ -9,6 +9,7 @@ import Account from './pages/Account.jsx'
 import Organizer from './pages/Organizer.jsx'
 import EventCreate from './pages/EventCreate.jsx'
 import Scan from './pages/Scan.jsx'
+import Admin from './pages/Admin.jsx'
 import Auth from './pages/Auth.jsx'
 import ResetPassword from './pages/ResetPassword.jsx'
 import About from './pages/About.jsx'
@@ -55,6 +56,19 @@ function RequireOrganizer({ children }) {
   if (loading) return <FullPageLoading />
   if (!session) return <Navigate to="/auth" replace state={{ from: location }} />
   if (profile && profile.role !== 'organizer') return <Navigate to="/" replace />
+  return children
+}
+
+// /admin is gated on profiles.is_admin, not the organizer role — it's the
+// site admin (Bakh) confirming SBP/bank-transfer payments, not an organizer
+// managing their own events. Enforced again server-side by the
+// list_pending_orders_admin / confirm_manual_payment RPCs either way.
+function RequireAdmin({ children }) {
+  const { session, profile, isAdmin, loading } = useAuth()
+  const location = useLocation()
+  if (loading) return <FullPageLoading />
+  if (!session) return <Navigate to="/auth" replace state={{ from: location }} />
+  if (profile && !isAdmin) return <Navigate to="/" replace />
   return children
 }
 
@@ -106,6 +120,14 @@ export default function App() {
             <RequireOrganizer>
               <Scan />
             </RequireOrganizer>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <RequireAdmin>
+              <Admin />
+            </RequireAdmin>
           }
         />
         <Route path="/auth" element={<Auth />} />
