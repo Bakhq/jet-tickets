@@ -11,6 +11,7 @@ export default function OrderConfirmation() {
   const navigate = useNavigate()
   const [event, setEvent] = useState(null)
   const [downloading, setDownloading] = useState(false)
+  const [bankAppLink, setBankAppLink] = useState(null)
 
   // If someone lands here without having gone through checkout, send them back
   // rather than fabricate an order that doesn't exist.
@@ -26,6 +27,46 @@ export default function OrderConfirmation() {
       active = false
     }
   }, [state, navigate])
+
+  // The payment QR below encodes a real SBP "pay by phone number" link (the
+  // same thing a bank's camera scan reads) — but a buyer checking out on
+  // their phone can't scan a QR shown on that same phone. So we decode the
+  // image client-side and offer the identical link as a plain button: on
+  // mobile, tapping it hands off to the OS's own bank-app chooser just like
+  // a scan would, with no camera step in the way. Purely a progressive
+  // enhancement — if decoding fails for any reason, the QR image still works.
+  useEffect(() => {
+    if (!state?.pending) return
+    let active = true
+    ;(async () => {
+      try {
+        const { default: jsQR } = await import('jsqr')
+        const img = new Image()
+        img.crossOrigin = 'anonymous'
+        const loaded = new Promise((resolve, reject) => {
+          img.onload = resolve
+          img.onerror = reject
+        })
+        img.src = '/qr-payment.jpg'
+        await loaded
+        const canvas = document.createElement('canvas')
+        canvas.width = img.naturalWidth
+        canvas.height = img.naturalHeight
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(img, 0, 0)
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+        const code = jsQR(imageData.data, imageData.width, imageData.height)
+        if (active && code?.data?.startsWith('https://')) {
+          setBankAppLink(code.data)
+        }
+      } catch {
+        // Image blocked, format changed, decode failed — fall back to the QR.
+      }
+    })()
+    return () => {
+      active = false
+    }
+  }, [state?.pending])
 
   if (!state || !event) return null
 
@@ -113,10 +154,23 @@ export default function OrderConfirmation() {
           <div className="w-full max-w-[560px] bg-white border border-border rounded-2xl p-5 sm:p-7 text-center">
             <div className="text-[14.5px] sm:text-base font-bold text-ink-2 mb-1">Оплата по QR-коду</div>
             <div className="text-xs sm:text-[13px] text-muted mb-4 sm:mb-5">
-              Отсканируйте код в приложении банка и переведите{' '}
+              Переведите{' '}
               <span className="font-semibold text-ink-2">{total.toLocaleString('ru-RU')} ₽</span>. В комментарии к
               переводу обязательно укажите номер заказа{' '}
               <span className="font-semibold text-ink-2">{orderNumber}</span> — так оплату быстрее найдут и подтвердят.
+            </div>
+            {bankAppLink && (
+              <a
+                href={bankAppLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full bg-teal text-ink text-center font-semibold text-[13.5px] sm:text-sm py-3 sm:py-[13px] rounded-[10px] hover:opacity-85 transition-opacity mb-3 sm:mb-4"
+              >
+                Оплатить в приложении банка
+              </a>
+            )}
+            <div className="text-[11.5px] sm:text-xs text-muted-light mb-3 sm:mb-4">
+              {bankAppLink ? 'или отсканируйте код с другого устройства' : 'Отсканируйте код в приложении банка'}
             </div>
             <img
               src="/qr-payment.jpg"
