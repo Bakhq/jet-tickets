@@ -249,6 +249,50 @@ export async function listRefundRequests(organizerId) {
   })
 }
 
+// ---------------------------------------------------------------- manual (QR/bank-transfer) payments ----------------------------------------------------------------
+
+// A single site-wide QR/phone-number image (public/qr-payment.jpg) stands in
+// for a real payment gateway for now — see src/lib/payments.js. The buyer
+// transfers outside the platform and puts their order number in the transfer
+// comment; the order stays 'pending' until the site admin (profiles.is_admin)
+// confirms it arrived via the two RPCs below. Everyone else calling these
+// gets back an empty list / a 'forbidden' result — see the SQL migration.
+
+// All orders currently awaiting a manual payment confirmation, across every
+// organizer's events — for the /admin pending-payments queue.
+export async function listPendingOrdersAdmin() {
+  const { data, error } = await supabase.rpc('list_pending_orders_admin')
+  if (error) throw error
+
+  return (data || []).map((o) => {
+    const items = o.items || []
+    const qty = items.reduce((sum, i) => sum + (i.qty || 0), 0)
+    const tierLabel = items.map((i) => i.tier_name).join(', ') || '—'
+    return {
+      id: o.id,
+      orderNumber: o.order_number,
+      eventTitle: o.event_title || 'Событие',
+      buyerName: o.buyer_name,
+      buyerEmail: o.buyer_email,
+      buyerPhone: o.buyer_phone,
+      tier: tierLabel,
+      qty,
+      total: o.total,
+      createdAt: o.created_at,
+    }
+  })
+}
+
+// Marks one pending order as paid once the admin has checked the transfer
+// arrived. Returns one of: ok | forbidden | not_found | not_pending.
+export async function confirmManualPayment(orderId) {
+  const { data, error } = await supabase.rpc('confirm_manual_payment', {
+    p_order_id: orderId,
+  })
+  if (error) throw error
+  return data
+}
+
 // ---------------------------------------------------------------- account / tickets ----------------------------------------------------------------
 
 export async function getProfile(userId) {
@@ -269,11 +313,13 @@ export async function updateProfile(userId, patch) {
   return data
 }
 
-// Splits a buyer's paid/refund-requested/refunded orders into upcoming vs
-// past based on the event date. `rawStatus` (the actual orders.status value)
-// rides alongside the display `status` string so Account.jsx can decide
-// whether to show the "Запросить возврат" button without a second query.
+// Splits a buyer's paid/pending/refund-requested/refunded orders into
+// upcoming vs past based on the event date. `rawStatus` (the actual
+// orders.status value) rides alongside the display `status` string so
+// Account.jsx can decide whether to show the "Запросить возврат" button and
+// the ticket QR/download actions without a second query.
 const TICKET_STATUS_LABEL = {
+  pending: 'Ожидает подтверждения оплаты',
   refund_requested: 'Возврат запрошен',
   refunded: 'Возврат оформлен',
 }
@@ -285,7 +331,7 @@ export async function listUserTickets(userId) {
       '*, events(title, event_date, event_time, venue, city, gradient_from, gradient_to, cover_image_url), order_items(*)'
     )
     .eq('user_id', userId)
-    .in('status', ['paid', 'refund_requested', 'refunded'])
+    .in('status', ['pending', 'paid', 'refund_requested', 'refunded'])
     .order('created_at', { ascending: false })
   if (error) throw error
 
